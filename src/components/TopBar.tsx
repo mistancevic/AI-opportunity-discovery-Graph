@@ -6,6 +6,7 @@ export function TopBar() {
   const setView = useStore((s) => s.setView)
   const resetProject = useStore((s) => s.resetProject)
   const pending = useStore((s) => s.suggestions.filter((x) => x.status === 'pending').length)
+  const impactChecking = useStore((s) => s.impactChecking)
   const openImpactModal = useStore((s) => s.openImpactModal)
 
   return (
@@ -13,6 +14,12 @@ export function TopBar() {
       <span className="font-semibold text-indigo-700">Opportunity Graph AI</span>
       <span className="truncate text-sm text-slate-500">{project?.title}</span>
       <div className="ml-auto flex items-center gap-2">
+        {impactChecking && (
+          <span className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
+            Analyzing impact…
+          </span>
+        )}
         {pending > 0 && (
           <button
             className="rounded-lg bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-200"

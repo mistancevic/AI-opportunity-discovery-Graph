@@ -1,7 +1,7 @@
 // AgentService implementation backed by Supabase Edge Functions.
 // Wired so far: generateInitialMap (Build 2), expandNode (Build 3),
-// challengeNode + validateNode (Build 4). Research, reframe, and impact
-// still use the mocks until Builds 5-6.
+// challengeNode + validateNode (Build 4), analyzeImpact (Build 5).
+// Research and reframe still use the mocks until Build 6.
 
 import type { AgentService } from './agents'
 import type {
@@ -10,6 +10,7 @@ import type {
   GenerateMapResult,
   GeneratedEdge,
   GeneratedNode,
+  ImpactResult,
   OppNode,
   ValidationResult,
 } from '../types'
@@ -98,6 +99,17 @@ interface WireValidationResult {
   timebox: string
 }
 
+interface WireImpactResult {
+  impact_summary: string
+  affected_nodes: {
+    node_id: string
+    impact_type: 'update' | 'warning' | 'contradiction' | 'opportunity'
+    suggested_change: string
+    reason: string
+    confidence_score: number
+  }[]
+}
+
 function nodePayload(node: OppNode) {
   return {
     node_type: node.nodeType,
@@ -180,6 +192,31 @@ export const edgeAgents: AgentService = {
       passSignal: wire.pass_signal,
       failSignal: wire.fail_signal,
       timebox: wire.timebox,
+    }
+  },
+
+  async analyzeImpact(before, after, relatedNodes): Promise<ImpactResult> {
+    const wire = await callEdgeFunction<WireImpactResult>('analyze-impact', {
+      changed_node_before: nodePayload(before),
+      changed_node_after: nodePayload(after),
+      related_nodes: relatedNodes.map((n) => ({
+        node_id: n.id,
+        node_type: n.nodeType,
+        title: n.title,
+        description: n.description,
+        evidence_status: n.evidenceStatus,
+      })),
+    })
+    return {
+      impactSummary: wire.impact_summary,
+      affectedNodes: wire.affected_nodes.map((a) => ({
+        nodeId: a.node_id,
+        impactType: a.impact_type,
+        suggestedTitle: null,
+        suggestedDescription: a.suggested_change,
+        reason: a.reason,
+        confidenceScore: a.confidence_score,
+      })),
     }
   },
 

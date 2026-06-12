@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { agents } from './ai'
+import { computeAutoLayout } from './lib/autoLayout'
 import type {
   AgentActionResult,
   EvidenceStatus,
@@ -36,6 +37,8 @@ interface AppState extends PersistedState {
   agentError: string | null
   impactChecking: boolean
   impactModalOpen: boolean
+  // Bumped whenever positions change wholesale so the canvas can re-fit the view.
+  layoutNonce: number
   filterNodeTypes: Set<NodeType>
   filterEvidenceStatuses: Set<EvidenceStatus>
   view: 'start' | 'graph' | 'validation_plan'
@@ -49,6 +52,7 @@ interface AppState extends PersistedState {
   addManualNode(nodeType: NodeType, title: string): void
   deleteNode(id: string): void
   connectNodes(sourceId: string, targetId: string, rel: RelationshipType): void
+  autoArrange(): void
   expandNode(id: string, direction: ExpandDirection): Promise<void>
   runAgentAction(id: string, action: 'research' | 'challenge' | 'validate' | 'reframe'): Promise<void>
   clearAgentResult(): void
@@ -165,6 +169,7 @@ export const useStore = create<AppState>((set, get) => ({
   agentError: null,
   impactChecking: false,
   impactModalOpen: false,
+  layoutNonce: 0,
   filterNodeTypes: new Set<NodeType>(),
   filterEvidenceStatuses: new Set<EvidenceStatus>(),
   view: initial.project ? 'graph' : 'start',
@@ -177,6 +182,16 @@ export const useStore = create<AppState>((set, get) => ({
       const positions = layoutPositions(result.nodes.length)
       const { nodes, idMap } = materializeNodes(result.nodes, projectId, positions, 'ai')
       const edges = materializeEdges(result.edges, projectId, idMap)
+      // Replace the placeholder positions with a proper layered layout -
+      // real maps vary in size and the naive ring overlaps badly.
+      const layout = computeAutoLayout(nodes, edges)
+      for (const n of nodes) {
+        const pos = layout.get(n.id)
+        if (pos) {
+          n.positionX = pos.x
+          n.positionY = pos.y
+        }
+      }
       const project: Project = {
         id: projectId,
         title: result.projectTitle,
@@ -187,7 +202,13 @@ export const useStore = create<AppState>((set, get) => ({
       }
       const next = { project, nodes, edges, versions: [], suggestions: [] }
       persist(next)
-      set({ ...next, view: 'graph', selectedNodeId: null, agentResult: null })
+      set({
+        ...next,
+        view: 'graph',
+        selectedNodeId: null,
+        agentResult: null,
+        layoutNonce: get().layoutNonce + 1,
+      })
     } catch (err) {
       set({ generateError: err instanceof Error ? err.message : 'Map generation failed. Please try again.' })
     } finally {
@@ -332,6 +353,18 @@ export const useStore = create<AppState>((set, get) => ({
     const edges = [...s.edges, edge]
     persist({ ...s, edges })
     set({ edges })
+  },
+
+  autoArrange() {
+    const s = get()
+    if (!s.nodes.length) return
+    const layout = computeAutoLayout(s.nodes, s.edges)
+    const nodes = s.nodes.map((n) => {
+      const pos = layout.get(n.id)
+      return pos ? { ...n, positionX: pos.x, positionY: pos.y } : n
+    })
+    persist({ ...s, nodes })
+    set({ nodes, layoutNonce: s.layoutNonce + 1 })
   },
 
   async expandNode(id, direction) {

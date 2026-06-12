@@ -8,6 +8,7 @@ export function TopBar() {
   const pending = useStore((s) => s.suggestions.filter((x) => x.status === 'pending').length)
   const impactChecking = useStore((s) => s.impactChecking)
   const openImpactModal = useStore((s) => s.openImpactModal)
+  const autoArrange = useStore((s) => s.autoArrange)
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4">
@@ -26,6 +27,15 @@ export function TopBar() {
             onClick={() => openImpactModal(true)}
           >
             {pending} impact suggestion{pending > 1 ? 's' : ''}
+          </button>
+        )}
+        {view === 'graph' && (
+          <button
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+            title="Re-arrange all nodes into a clean layered layout"
+            onClick={autoArrange}
+          >
+            Auto-arrange
           </button>
         )}
         <button

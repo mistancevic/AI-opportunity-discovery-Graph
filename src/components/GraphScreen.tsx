@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ReactFlow, Background, Controls, MiniMap, applyNodeChanges } from '@xyflow/react'
-import type { Connection, Edge, NodeChange } from '@xyflow/react'
+import type { Connection, Edge, NodeChange, ReactFlowInstance } from '@xyflow/react'
 import { useStore } from '../store'
 import { OppNodeCard } from './OppNodeCard'
 import type { OppFlowNode } from './OppNodeCard'
@@ -21,6 +21,16 @@ export function GraphScreen() {
   const setNodePosition = useStore((s) => s.setNodePosition)
   const connectNodes = useStore((s) => s.connectNodes)
   const impactModalOpen = useStore((s) => s.impactModalOpen)
+  const layoutNonce = useStore((s) => s.layoutNonce)
+
+  // Re-fit the viewport whenever the layout is recomputed wholesale.
+  const [rf, setRf] = useState<ReactFlowInstance<OppFlowNode, Edge> | null>(null)
+  useEffect(() => {
+    if (rf && layoutNonce > 0) {
+      // Defer until the new positions have rendered.
+      requestAnimationFrame(() => void rf.fitView({ padding: 0.15, duration: 400 }))
+    }
+  }, [rf, layoutNonce])
 
   const visibleNodes = useMemo(
     () =>
@@ -103,6 +113,7 @@ export function GraphScreen() {
             onConnect={onConnect}
             onNodeClick={(_, n) => selectNode(n.id)}
             onPaneClick={() => selectNode(null)}
+            onInit={setRf}
             fitView
             minZoom={0.2}
             proOptions={{ hideAttribution: true }}

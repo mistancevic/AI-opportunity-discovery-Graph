@@ -1,7 +1,8 @@
 // AgentService implementation backed by Supabase Edge Functions.
-// Wired so far: generateInitialMap (Build 2), expandNode (Build 3),
-// challengeNode + validateNode (Build 4), analyzeImpact (Build 5).
-// Research and reframe still use the mocks until Build 6.
+// All seven agents are wired: generateInitialMap (Build 2), expandNode
+// (Build 3), challengeNode + validateNode (Build 4), analyzeImpact
+// (Build 5), researchNode + reframeNode (Build 6). The mocks remain only
+// as the zero-config fallback when Supabase env vars are absent.
 
 import type { AgentService } from './agents'
 import type {
@@ -12,6 +13,8 @@ import type {
   GeneratedNode,
   ImpactResult,
   OppNode,
+  ReframeResult,
+  ResearchResult,
   ValidationResult,
 } from '../types'
 import { mockAgents } from './mockAgents'
@@ -110,6 +113,20 @@ interface WireImpactResult {
   }[]
 }
 
+interface WireResearchResult {
+  research_summary: string
+  possible_signals: string[]
+  current_alternatives: string[]
+  open_questions: string[]
+  weak_signals: string[]
+  strong_signals_to_validate: string[]
+  next_action: string
+}
+
+interface WireReframeResult {
+  reframes: { title: string; why_it_matters: string }[]
+}
+
 function nodePayload(node: OppNode) {
   return {
     node_type: node.nodeType,
@@ -156,6 +173,32 @@ export const edgeAgents: AgentService = {
         suggestedAction: wire.today_next_step.suggested_action,
         whyItMatters: wire.today_next_step.why_it_matters,
       },
+    }
+  },
+
+  async researchNode(node, projectContext): Promise<ResearchResult> {
+    const wire = await callEdgeFunction<WireResearchResult>('research-node', {
+      selected_node: nodePayload(node),
+      project_context: { raw_idea: projectContext.rawIdea },
+    })
+    return {
+      researchSummary: wire.research_summary,
+      possibleSignals: wire.possible_signals,
+      currentAlternatives: wire.current_alternatives,
+      openQuestions: wire.open_questions,
+      weakSignals: wire.weak_signals,
+      strongSignalsToValidate: wire.strong_signals_to_validate,
+      nextAction: wire.next_action,
+    }
+  },
+
+  async reframeNode(node, projectContext): Promise<ReframeResult> {
+    const wire = await callEdgeFunction<WireReframeResult>('reframe-node', {
+      selected_node: nodePayload(node),
+      project_context: { raw_idea: projectContext.rawIdea },
+    })
+    return {
+      reframes: wire.reframes.map((r) => ({ title: r.title, whyItMatters: r.why_it_matters })),
     }
   },
 

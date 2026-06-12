@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import { EXAMPLE_IDEA } from '../constants'
+import { edgeConfigured } from '../ai'
 
 export function StartScreen() {
   const [idea, setIdea] = useState('')
   const generating = useStore((s) => s.generating)
+  const generateError = useStore((s) => s.generateError)
   const generateMap = useStore((s) => s.generateMap)
 
   const submit = (text: string) => {
@@ -45,8 +47,14 @@ export function StartScreen() {
             Use Example Idea
           </button>
         </div>
+        {generateError && (
+          <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {generateError}
+          </p>
+        )}
         <p className="mt-6 text-sm text-slate-400">
           Every generated node is a claim, not a fact. The map's job is to show you what to validate next.
+          {!edgeConfigured && ' Running on built-in mock AI — connect Supabase to enable real generation.'}
         </p>
       </div>
     </div>

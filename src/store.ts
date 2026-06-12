@@ -360,22 +360,23 @@ export const useStore = create<AppState>((set, get) => ({
   async runAgentAction(id, action) {
     const s = get()
     const node = s.nodes.find((n) => n.id === id)
-    if (!node) return
+    if (!node || !s.project) return
+    const context = { rawIdea: s.project.rawIdea }
     set({ agentBusy: action, agentResult: null, agentError: null })
     try {
       let result: AgentActionResult
       switch (action) {
         case 'research':
-          result = { kind: 'research', data: await agents.researchNode(node) }
+          result = { kind: 'research', data: await agents.researchNode(node, context) }
           break
         case 'challenge':
-          result = { kind: 'challenge', data: await agents.challengeNode(node) }
+          result = { kind: 'challenge', data: await agents.challengeNode(node, context) }
           break
         case 'validate':
-          result = { kind: 'validate', data: await agents.validateNode(node) }
+          result = { kind: 'validate', data: await agents.validateNode(node, context) }
           break
         case 'reframe':
-          result = { kind: 'reframe', data: await agents.reframeNode(node) }
+          result = { kind: 'reframe', data: await agents.reframeNode(node, context) }
           break
       }
       set({ agentResult: result })

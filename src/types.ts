@@ -232,3 +232,31 @@ export type AgentActionResult =
   | { kind: 'challenge'; data: ChallengeResult }
   | { kind: 'validate'; data: ValidationResult }
   | { kind: 'reframe'; data: ReframeResult }
+
+// ---- Discovery panel (conversational narrowing before map generation) ----
+
+export type PanelAgentKind = 'lead' | 'critic' | 'tenx' | 'wildcard' | 'specialist'
+
+export interface PanelAgent {
+  agentId: string
+  name: string
+  role: string
+  perspective: string
+  kind: PanelAgentKind
+}
+
+export interface PanelMessage {
+  // 'user' for the human; otherwise a roster agentId.
+  agentId: string
+  agentName: string
+  text: string
+}
+
+export interface DiscussResult {
+  // Populated on the first turn (when the casting step runs); empty after.
+  roster: PanelAgent[]
+  messages: PanelMessage[]
+  readyToMap: boolean
+  // Running synthesis of the agreed focus: segment, problem, angle.
+  focusBrief: string
+}

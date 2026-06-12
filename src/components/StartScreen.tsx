@@ -8,11 +8,7 @@ export function StartScreen() {
   const generating = useStore((s) => s.generating)
   const generateError = useStore((s) => s.generateError)
   const generateMap = useStore((s) => s.generateMap)
-
-  const submit = (text: string) => {
-    if (!text.trim() || generating) return
-    void generateMap(text.trim())
-  }
+  const startDiscussion = useStore((s) => s.startDiscussion)
 
   return (
     <div className="flex h-full items-center justify-center bg-slate-50 px-4">
@@ -28,25 +24,37 @@ export function StartScreen() {
           onChange={(e) => setIdea(e.target.value)}
           disabled={generating}
         />
-        <div className="mt-4 flex gap-3">
+        <div className="mt-4 flex flex-wrap gap-3">
           <button
             className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             disabled={!idea.trim() || generating}
-            onClick={() => submit(idea)}
+            onClick={() => void startDiscussion(idea.trim())}
           >
-            {generating ? 'Generating map…' : 'Generate Opportunity Map'}
+            Discuss & Focus First
+          </button>
+          <button
+            className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            disabled={!idea.trim() || generating}
+            onClick={() => void generateMap(idea.trim())}
+          >
+            {generating ? 'Generating map…' : 'Skip — Generate Map Directly'}
           </button>
           <button
             className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
             disabled={generating}
             onClick={() => {
               setIdea(EXAMPLE_IDEA)
-              submit(EXAMPLE_IDEA)
+              void startDiscussion(EXAMPLE_IDEA)
             }}
           >
             Use Example Idea
           </button>
         </div>
+        <p className="mt-3 text-sm text-slate-400">
+          <span className="font-medium text-slate-500">Discuss & Focus</span> convenes a panel — a lead, a
+          critic, a 10x thinker, a wildcard, and specialists cast for your domain — to narrow the idea before
+          mapping it. Fewer, sharper nodes instead of a wall of cards.
+        </p>
         {generateError && (
           <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {generateError}

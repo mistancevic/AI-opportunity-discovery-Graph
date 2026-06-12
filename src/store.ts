@@ -12,6 +12,8 @@ import type {
   NodeVersion,
   OppEdge,
   OppNode,
+  PanelAgent,
+  PanelMessage,
   Project,
   RelationshipType,
 } from './types'
@@ -41,9 +43,22 @@ interface AppState extends PersistedState {
   layoutNonce: number
   filterNodeTypes: Set<NodeType>
   filterEvidenceStatuses: Set<EvidenceStatus>
-  view: 'start' | 'graph' | 'validation_plan'
+  view: 'start' | 'discuss' | 'graph' | 'validation_plan'
 
-  generateMap(rawIdea: string): Promise<void>
+  // Discovery panel state (in-memory; a discussion ends when a map is generated)
+  discussion: {
+    rawIdea: string
+    roster: PanelAgent[]
+    messages: PanelMessage[]
+    focusBrief: string
+    readyToMap: boolean
+  } | null
+  panelBusy: boolean
+  panelError: string | null
+
+  startDiscussion(rawIdea: string): Promise<void>
+  sendPanelMessage(text: string): Promise<void>
+  generateMap(rawIdea: string, focusBrief?: string): Promise<void>
   resetProject(): void
   selectNode(id: string | null): void
   setView(view: AppState['view']): void
@@ -173,11 +188,67 @@ export const useStore = create<AppState>((set, get) => ({
   filterNodeTypes: new Set<NodeType>(),
   filterEvidenceStatuses: new Set<EvidenceStatus>(),
   view: initial.project ? 'graph' : 'start',
+  discussion: null,
+  panelBusy: false,
+  panelError: null,
 
-  async generateMap(rawIdea) {
+  async startDiscussion(rawIdea) {
+    set({
+      view: 'discuss',
+      discussion: { rawIdea, roster: [], messages: [], focusBrief: '', readyToMap: false },
+      panelBusy: true,
+      panelError: null,
+    })
+    try {
+      const result = await agents.discussIdea(rawIdea, [], null)
+      const d = get().discussion
+      if (!d) return
+      set({
+        discussion: {
+          ...d,
+          roster: result.roster.length ? result.roster : d.roster,
+          messages: [...d.messages, ...result.messages],
+          focusBrief: result.focusBrief || d.focusBrief,
+          readyToMap: result.readyToMap,
+        },
+      })
+    } catch (err) {
+      set({ panelError: err instanceof Error ? err.message : 'The panel failed to start.' })
+    } finally {
+      set({ panelBusy: false })
+    }
+  },
+
+  async sendPanelMessage(text) {
+    const d = get().discussion
+    if (!d || !text.trim()) return
+    const userMessage: PanelMessage = { agentId: 'user', agentName: 'You', text: text.trim() }
+    const history = [...d.messages, userMessage]
+    set({ discussion: { ...d, messages: history }, panelBusy: true, panelError: null })
+    try {
+      const result = await agents.discussIdea(d.rawIdea, history, d.roster.length ? d.roster : null)
+      const d2 = get().discussion
+      if (!d2) return
+      set({
+        discussion: {
+          ...d2,
+          roster: result.roster.length ? result.roster : d2.roster,
+          messages: [...d2.messages, ...result.messages],
+          focusBrief: result.focusBrief || d2.focusBrief,
+          readyToMap: result.readyToMap || d2.readyToMap,
+        },
+      })
+    } catch (err) {
+      set({ panelError: err instanceof Error ? err.message : 'The panel failed to respond.' })
+    } finally {
+      set({ panelBusy: false })
+    }
+  },
+
+  async generateMap(rawIdea, focusBrief) {
     set({ generating: true, generateError: null })
     try {
-      const result = await agents.generateInitialMap(rawIdea)
+      const result = await agents.generateInitialMap(rawIdea, focusBrief)
       const projectId = uid()
       const positions = layoutPositions(result.nodes.length)
       const { nodes, idMap } = materializeNodes(result.nodes, projectId, positions, 'ai')
@@ -207,6 +278,7 @@ export const useStore = create<AppState>((set, get) => ({
         view: 'graph',
         selectedNodeId: null,
         agentResult: null,
+        discussion: null,
         layoutNonce: get().layoutNonce + 1,
       })
     } catch (err) {
@@ -219,7 +291,7 @@ export const useStore = create<AppState>((set, get) => ({
   resetProject() {
     const next: PersistedState = { project: null, nodes: [], edges: [], versions: [], suggestions: [] }
     persist(next)
-    set({ ...next, view: 'start', selectedNodeId: null, agentResult: null })
+    set({ ...next, view: 'start', selectedNodeId: null, agentResult: null, discussion: null })
   },
 
   selectNode(id) {

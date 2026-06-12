@@ -11,18 +11,29 @@
 
 import type {
   ChallengeResult,
+  DiscussResult,
   ExpandDirection,
   ExpandNodeResult,
   GenerateMapResult,
   ImpactResult,
   OppNode,
+  PanelAgent,
+  PanelMessage,
   ReframeResult,
   ResearchResult,
   ValidationResult,
 } from '../types'
 
 export interface AgentService {
-  generateInitialMap(rawIdea: string): Promise<GenerateMapResult>
+  generateInitialMap(rawIdea: string, focusBrief?: string): Promise<GenerateMapResult>
+  // Conversational narrowing: a facilitated panel (lead, critic, 10x,
+  // wildcard, plus cast domain specialists) that converges on a focus
+  // brief before the map is generated. history includes user turns.
+  discussIdea(
+    rawIdea: string,
+    history: PanelMessage[],
+    roster: PanelAgent[] | null,
+  ): Promise<DiscussResult>
   expandNode(
     node: OppNode,
     direction: ExpandDirection,

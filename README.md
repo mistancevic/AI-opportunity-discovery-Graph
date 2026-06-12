@@ -4,9 +4,9 @@ An AI-assisted visual discovery workspace that turns one raw idea into a claim-b
 
 **Key product decision:** this is not a generic AI mind map. Every node is a *claim* with an evidence status and a confidence score, and the map's job is to tell you what to validate next.
 
-## Current state: Build 4 — real challenge & validation agents
+## Current state: Build 5 — real cross-reference impact analysis
 
-Build 1 delivered the full UI and interaction model on **mock AI agents**. Builds 2–4 replaced the mocks with real Claude-backed Edge Functions: **map generation** (`generate-map`), **node expansion** (`expand-node`), **challenge** (`challenge-node`), and **validation planning** (`validate-node`). All functions call Claude (`claude-opus-4-8`) with strict JSON contracts enforced by structured outputs, sharing one helper module (`supabase/functions/_shared/claude.ts`). Research, reframe, and cross-reference impact still run on contract-compatible mocks until Builds 5–6. Without env config the whole app runs on mocks — no API keys needed to try it. Data persists in `localStorage`. The left workspace panel is collapsible for more canvas space.
+Build 1 delivered the full UI and interaction model on **mock AI agents**. Builds 2–5 replaced the mocks with real Claude-backed Edge Functions: **map generation** (`generate-map`), **node expansion** (`expand-node`), **challenge** (`challenge-node`), **validation planning** (`validate-node`), and **cross-reference impact** (`analyze-impact`) — when you meaningfully edit a node, the impact agent reviews the connected nodes and proposes updates (update / warning / contradiction / opportunity) that you accept, edit, or reject. All functions call Claude (`claude-opus-4-8`) with strict JSON contracts enforced by structured outputs, sharing one helper module (`supabase/functions/_shared/claude.ts`). Research and reframe still run on contract-compatible mocks until Build 6. Without env config the whole app runs on mocks — no API keys needed to try it. Data persists in `localStorage`. The left workspace panel is collapsible for more canvas space.
 
 What works:
 
@@ -40,6 +40,7 @@ Then open the printed URL, click **Use Example Idea**, and explore. This runs en
    supabase functions deploy expand-node
    supabase functions deploy challenge-node
    supabase functions deploy validate-node
+   supabase functions deploy analyze-impact
    ```
 3. Copy `.env.example` to `.env` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Project Settings → API).
 4. Restart `npm run dev`. The start screen stops showing the mock-AI notice, and **Generate Opportunity Map** now produces a map genuinely derived from your idea.
@@ -57,7 +58,7 @@ The Anthropic key lives only in Supabase secrets — the browser never sees it. 
 ## Architecture notes for the next builds
 
 - `src/ai/agents.ts` defines the `AgentService` interface — one method per agent endpoint (`generate-map`, `expand-node`, `research-node`, `challenge-node`, `validate-node`, `reframe-node`, `analyze-impact`).
-- `src/ai/mockAgents.ts` is the mock implementation; `src/ai/edgeAgents.ts` overrides methods with `fetch()` calls to Supabase Edge Functions as they ship (currently: `generateInitialMap`, `expandNode`, `challengeNode`, `validateNode`). `src/ai/index.ts` picks edge agents when `VITE_SUPABASE_*` env vars are set, mocks otherwise. No UI code changes needed per build.
+- `src/ai/mockAgents.ts` is the mock implementation; `src/ai/edgeAgents.ts` overrides methods with `fetch()` calls to Supabase Edge Functions as they ship (currently: `generateInitialMap`, `expandNode`, `challengeNode`, `validateNode`, `analyzeImpact`). `src/ai/index.ts` picks edge agents when `VITE_SUPABASE_*` env vars are set, mocks otherwise. No UI code changes needed per build.
 - `supabase/functions/_shared/claude.ts` holds the shared agent plumbing: CORS, body parsing, the Claude call (Opus 4.8, adaptive thinking, structured outputs pinned to each contract's JSON schema), and refusal/truncation/rate-limit handling. Each agent function (`generate-map`, `expand-node`, …) is just a system prompt + schema + input validation on top of it.
 - `src/types.ts` mirrors both the prompt contracts (agent inputs/outputs) and the Supabase tables.
 - `src/store.ts` holds all app logic (graph mutations, versioning, impact suggestion lifecycle). Its `persist()` calls are the seam where the localStorage layer gets swapped for Supabase reads/writes.

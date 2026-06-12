@@ -34,6 +34,7 @@ interface AppState extends PersistedState {
   agentBusy: ExpandDirection | 'research' | 'challenge' | 'validate' | 'reframe' | null
   agentResult: AgentActionResult | null
   agentError: string | null
+  impactChecking: boolean
   impactModalOpen: boolean
   filterNodeTypes: Set<NodeType>
   filterEvidenceStatuses: Set<EvidenceStatus>
@@ -162,6 +163,7 @@ export const useStore = create<AppState>((set, get) => ({
   agentBusy: null,
   agentResult: null,
   agentError: null,
+  impactChecking: false,
   impactModalOpen: false,
   filterNodeTypes: new Set<NodeType>(),
   filterEvidenceStatuses: new Set<EvidenceStatus>(),
@@ -241,24 +243,32 @@ export const useStore = create<AppState>((set, get) => ({
     )
     // Include same-project dependent nodes even without a direct edge.
     const candidates = related.length ? related : nodes.filter((n) => n.id !== id)
-    const impact = await agents.analyzeImpact(before, after, candidates)
-    if (!impact.affectedNodes.length) return
-    const suggestions: ImpactSuggestion[] = impact.affectedNodes.map((a) => ({
-      id: uid(),
-      projectId: before.projectId,
-      changedNodeId: id,
-      affectedNodeId: a.nodeId,
-      impactType: a.impactType,
-      suggestedTitle: a.suggestedTitle,
-      suggestedDescription: a.suggestedDescription,
-      reason: a.reason,
-      status: 'pending',
-      createdAt: now(),
-    }))
-    const s2 = get()
-    const allSuggestions = [...s2.suggestions.filter((x) => x.status !== 'pending'), ...suggestions]
-    persist({ ...s2, suggestions: allSuggestions })
-    set({ suggestions: allSuggestions, impactModalOpen: true })
+    set({ impactChecking: true })
+    try {
+      const impact = await agents.analyzeImpact(before, after, candidates)
+      if (!impact.affectedNodes.length) return
+      const suggestions: ImpactSuggestion[] = impact.affectedNodes.map((a) => ({
+        id: uid(),
+        projectId: before.projectId,
+        changedNodeId: id,
+        affectedNodeId: a.nodeId,
+        impactType: a.impactType,
+        suggestedTitle: a.suggestedTitle,
+        suggestedDescription: a.suggestedDescription,
+        reason: a.reason,
+        status: 'pending',
+        createdAt: now(),
+      }))
+      const s2 = get()
+      const allSuggestions = [...s2.suggestions.filter((x) => x.status !== 'pending'), ...suggestions]
+      persist({ ...s2, suggestions: allSuggestions })
+      set({ suggestions: allSuggestions, impactModalOpen: true })
+    } catch (err) {
+      // The edit itself already saved; a failed impact check must not undo it.
+      set({ agentError: err instanceof Error ? err.message : 'Impact check failed.' })
+    } finally {
+      set({ impactChecking: false })
+    }
   },
 
   setNodePosition(id, x, y, save = true) {

@@ -33,6 +33,7 @@ interface AppState extends PersistedState {
   generateError: string | null
   agentBusy: ExpandDirection | 'research' | 'challenge' | 'validate' | 'reframe' | null
   agentResult: AgentActionResult | null
+  agentError: string | null
   impactModalOpen: boolean
   filterNodeTypes: Set<NodeType>
   filterEvidenceStatuses: Set<EvidenceStatus>
@@ -160,6 +161,7 @@ export const useStore = create<AppState>((set, get) => ({
   generateError: null,
   agentBusy: null,
   agentResult: null,
+  agentError: null,
   impactModalOpen: false,
   filterNodeTypes: new Set<NodeType>(),
   filterEvidenceStatuses: new Set<EvidenceStatus>(),
@@ -198,7 +200,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   selectNode(id) {
-    set({ selectedNodeId: id, agentResult: null })
+    set({ selectedNodeId: id, agentResult: null, agentError: null })
   },
 
   setView(view) {
@@ -326,7 +328,7 @@ export const useStore = create<AppState>((set, get) => ({
     const s = get()
     const node = s.nodes.find((n) => n.id === id)
     if (!node || !s.project) return
-    set({ agentBusy: direction })
+    set({ agentBusy: direction, agentError: null })
     try {
       const result = await agents.expandNode(node, direction, {
         rawIdea: s.project.rawIdea,
@@ -348,6 +350,8 @@ export const useStore = create<AppState>((set, get) => ({
       const edges = [...s2.edges, ...newEdges]
       persist({ ...s2, nodes, edges })
       set({ nodes, edges })
+    } catch (err) {
+      set({ agentError: err instanceof Error ? err.message : 'Expansion failed. Please try again.' })
     } finally {
       set({ agentBusy: null })
     }
@@ -357,7 +361,7 @@ export const useStore = create<AppState>((set, get) => ({
     const s = get()
     const node = s.nodes.find((n) => n.id === id)
     if (!node) return
-    set({ agentBusy: action, agentResult: null })
+    set({ agentBusy: action, agentResult: null, agentError: null })
     try {
       let result: AgentActionResult
       switch (action) {
@@ -375,6 +379,8 @@ export const useStore = create<AppState>((set, get) => ({
           break
       }
       set({ agentResult: result })
+    } catch (err) {
+      set({ agentError: err instanceof Error ? err.message : 'Agent action failed. Please try again.' })
     } finally {
       set({ agentBusy: null })
     }

@@ -4,9 +4,9 @@ An AI-assisted visual discovery workspace that turns one raw idea into a claim-b
 
 **Key product decision:** this is not a generic AI mind map. Every node is a *claim* with an evidence status and a confidence score, and the map's job is to tell you what to validate next.
 
-## Current state: Build 1 — static working prototype
+## Current state: Build 2 — real AI map generation
 
-This is Build 1 from the MVP plan: the full UI and interaction model running on **mock AI agents**. The mock agents return deterministic, claim-shaped output that follows the same JSON contracts as the future Supabase Edge Functions, so the whole flow can be exercised end-to-end without API keys. Data persists in `localStorage`.
+Build 1 delivered the full UI and interaction model on **mock AI agents**. Build 2 adds **real AI map generation**: a Supabase Edge Function (`generate-map`) calls Claude (`claude-opus-4-8`) with the strict Contract 1 JSON schema (structured outputs guarantee valid JSON) and the app uses it automatically when Supabase env vars are configured. Everything else (expansion, challenge, validate, reframe, impact) still runs on contract-compatible mocks until Builds 3–6 ship their Edge Functions. Without env config the whole app runs on mocks — no API keys needed to try it. Data persists in `localStorage`.
 
 What works:
 
@@ -27,7 +27,21 @@ npm install
 npm run dev
 ```
 
-Then open the printed URL, click **Use Example Idea**, and explore.
+Then open the printed URL, click **Use Example Idea**, and explore. This runs entirely on mock agents — no keys required.
+
+### Enabling real AI map generation
+
+1. Create a [Supabase](https://supabase.com) project and install the [Supabase CLI](https://supabase.com/docs/guides/cli).
+2. Link and deploy the Edge Function:
+   ```bash
+   supabase link --project-ref <your-project-ref>
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+   supabase functions deploy generate-map
+   ```
+3. Copy `.env.example` to `.env` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Project Settings → API).
+4. Restart `npm run dev`. The start screen stops showing the mock-AI notice, and **Generate Opportunity Map** now produces a map genuinely derived from your idea.
+
+The Anthropic key lives only in Supabase secrets — the browser never sees it. Apply the database schema later with `supabase db push` (used from Build 3+ for persistence).
 
 ## Stack
 
@@ -40,7 +54,8 @@ Then open the printed URL, click **Use Example Idea**, and explore.
 ## Architecture notes for the next builds
 
 - `src/ai/agents.ts` defines the `AgentService` interface — one method per agent endpoint (`generate-map`, `expand-node`, `research-node`, `challenge-node`, `validate-node`, `reframe-node`, `analyze-impact`).
-- `src/ai/mockAgents.ts` is the current implementation. Build 2+ replaces it with `fetch()` calls to Supabase Edge Functions; flip the export in `src/ai/index.ts`. No UI code changes needed.
+- `src/ai/mockAgents.ts` is the mock implementation; `src/ai/edgeAgents.ts` overrides methods with `fetch()` calls to Supabase Edge Functions as they ship (currently: `generateInitialMap`). `src/ai/index.ts` picks edge agents when `VITE_SUPABASE_*` env vars are set, mocks otherwise. No UI code changes needed per build.
+- `supabase/functions/generate-map/index.ts` is the Deno Edge Function: Claude Opus 4.8, adaptive thinking, structured outputs pinned to the Contract 1 JSON schema, with refusal/truncation/rate-limit handling. The next agents follow the same template.
 - `src/types.ts` mirrors both the prompt contracts (agent inputs/outputs) and the Supabase tables.
 - `src/store.ts` holds all app logic (graph mutations, versioning, impact suggestion lifecycle). Its `persist()` calls are the seam where the localStorage layer gets swapped for Supabase reads/writes.
 

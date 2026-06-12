@@ -30,6 +30,7 @@ interface PersistedState {
 interface AppState extends PersistedState {
   selectedNodeId: string | null
   generating: boolean
+  generateError: string | null
   agentBusy: ExpandDirection | 'research' | 'challenge' | 'validate' | 'reframe' | null
   agentResult: AgentActionResult | null
   impactModalOpen: boolean
@@ -156,6 +157,7 @@ export const useStore = create<AppState>((set, get) => ({
   ...initial,
   selectedNodeId: null,
   generating: false,
+  generateError: null,
   agentBusy: null,
   agentResult: null,
   impactModalOpen: false,
@@ -164,7 +166,7 @@ export const useStore = create<AppState>((set, get) => ({
   view: initial.project ? 'graph' : 'start',
 
   async generateMap(rawIdea) {
-    set({ generating: true })
+    set({ generating: true, generateError: null })
     try {
       const result = await agents.generateInitialMap(rawIdea)
       const projectId = uid()
@@ -182,6 +184,8 @@ export const useStore = create<AppState>((set, get) => ({
       const next = { project, nodes, edges, versions: [], suggestions: [] }
       persist(next)
       set({ ...next, view: 'graph', selectedNodeId: null, agentResult: null })
+    } catch (err) {
+      set({ generateError: err instanceof Error ? err.message : 'Map generation failed. Please try again.' })
     } finally {
       set({ generating: false })
     }

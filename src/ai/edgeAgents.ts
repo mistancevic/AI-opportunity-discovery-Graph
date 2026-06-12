@@ -7,12 +7,14 @@
 import type { AgentService } from './agents'
 import type {
   ChallengeResult,
+  DiscussResult,
   ExpandNodeResult,
   GenerateMapResult,
   GeneratedEdge,
   GeneratedNode,
   ImpactResult,
   OppNode,
+  PanelAgentKind,
   ReframeResult,
   ResearchResult,
   ValidationResult,
@@ -127,6 +129,19 @@ interface WireReframeResult {
   reframes: { title: string; why_it_matters: string }[]
 }
 
+interface WireDiscussResult {
+  roster: {
+    agent_id: string
+    name: string
+    role: string
+    perspective: string
+    kind: PanelAgentKind
+  }[]
+  messages: { agent_id: string; text: string }[]
+  ready_to_map: boolean
+  focus_brief: string
+}
+
 function nodePayload(node: OppNode) {
   return {
     node_type: node.nodeType,
@@ -147,8 +162,47 @@ interface WireExpandResult {
 export const edgeAgents: AgentService = {
   ...mockAgents,
 
-  async generateInitialMap(rawIdea: string): Promise<GenerateMapResult> {
-    const wire = await callEdgeFunction<WireMapResult>('generate-map', { raw_idea: rawIdea })
+  async discussIdea(rawIdea, history, roster): Promise<DiscussResult> {
+    const wire = await callEdgeFunction<WireDiscussResult>('discuss-idea', {
+      raw_idea: rawIdea,
+      roster:
+        roster?.map((a) => ({
+          agent_id: a.agentId,
+          name: a.name,
+          role: a.role,
+          perspective: a.perspective,
+          kind: a.kind,
+        })) ?? null,
+      history: history.map((m) => ({
+        speaker: m.agentId === 'user' ? 'user' : m.agentName,
+        text: m.text,
+      })),
+    })
+    const newRoster = wire.roster.map((a) => ({
+      agentId: a.agent_id,
+      name: a.name,
+      role: a.role,
+      perspective: a.perspective,
+      kind: a.kind,
+    }))
+    const allAgents = new Map((roster ?? newRoster).concat(newRoster).map((a) => [a.agentId, a]))
+    return {
+      roster: newRoster,
+      messages: wire.messages.map((m) => ({
+        agentId: m.agent_id,
+        agentName: allAgents.get(m.agent_id)?.name ?? m.agent_id,
+        text: m.text,
+      })),
+      readyToMap: wire.ready_to_map,
+      focusBrief: wire.focus_brief,
+    }
+  },
+
+  async generateInitialMap(rawIdea: string, focusBrief?: string): Promise<GenerateMapResult> {
+    const wire = await callEdgeFunction<WireMapResult>('generate-map', {
+      raw_idea: rawIdea,
+      focus_brief: focusBrief ?? null,
+    })
     return {
       projectTitle: wire.project_title,
       summary: wire.summary,

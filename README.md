@@ -4,7 +4,11 @@ An AI-assisted visual discovery workspace that turns one raw idea into a claim-b
 
 **Key product decision:** this is not a generic AI mind map. Every node is a *claim* with an evidence status and a confidence score, and the map's job is to tell you what to validate next.
 
-## Current state: Build 6 — all seven AI agents are real
+## Current state: Build 7 — Discovery Panel intake
+
+New default flow: instead of jumping straight from raw idea to a wall of nodes, **Discuss & Focus First** convenes a discovery panel — a lead facilitator, a critic, a 10x thinker, a wildcard, and 1–2 **domain specialists cast on the fly for your specific idea** (`discuss-idea` Edge Function). The panel narrows the idea toward a blue-ocean focus (exact segment, sharpest pain, an angle incumbents won't copy) in a few short conversational rounds, maintaining a running focus brief. Generating the map then uses that brief, producing a tight focused map instead of a broad dump. The direct "skip and generate" path remains.
+
+## Previous milestone: Build 6 — all seven AI agents are real
 
 The MVP agent roster is complete. Builds 2–6 replaced every mock with a real Claude-backed Edge Function: **map generation** (`generate-map`), **node expansion** (`expand-node`), **challenge** (`challenge-node`), **validation planning** (`validate-node`), **cross-reference impact** (`analyze-impact`), **research planning** (`research-node`), and **reframing** (`reframe-node`). All functions call Claude (`claude-opus-4-8`) with strict JSON contracts enforced by structured outputs, sharing one helper module (`supabase/functions/_shared/claude.ts`). Research is AI-generated angle-finding by design — live web search is a deliberate future enhancement so the product stays a discovery system, not a search tool. Without env config the whole app runs on mocks — no API keys needed to try it. Data persists in `localStorage`. The left workspace panel is collapsible for more canvas space.
 
@@ -45,7 +49,10 @@ Then open the printed URL, click **Use Example Idea**, and explore. This runs en
    supabase functions deploy analyze-impact
    supabase functions deploy research-node
    supabase functions deploy reframe-node
+   supabase functions deploy discuss-idea
    ```
+
+   (Or skip all of the above: merging to `main` auto-deploys every function via `.github/workflows/deploy-functions.yml`, given the `SUPABASE_ACCESS_TOKEN` repo secret.)
 3. Copy `.env.example` to `.env` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Project Settings → API).
 4. Restart `npm run dev`. The start screen stops showing the mock-AI notice, and **Generate Opportunity Map** now produces a map genuinely derived from your idea.
 

@@ -112,6 +112,7 @@ Deno.serve(async (req) => {
   const parsed = await readJSONBody(req)
   if (!parsed.ok) return parsed.response
   const rawIdea = parsed.body.raw_idea
+  const focusBrief = parsed.body.focus_brief
 
   if (typeof rawIdea !== 'string' || !rawIdea.trim()) {
     return errorResponse(400, 'raw_idea must be a non-empty string')
@@ -120,9 +121,14 @@ Deno.serve(async (req) => {
     return errorResponse(400, 'raw_idea is too long (max 4000 characters)')
   }
 
+  let userPrompt = `Create an initial opportunity map for this raw idea:\n\n${rawIdea.trim()}`
+  if (typeof focusBrief === 'string' && focusBrief.trim()) {
+    userPrompt += `\n\nFocus brief from the discovery panel discussion (the user already narrowed the idea - build the map around THIS focus, not the broad idea):\n${focusBrief.trim().slice(0, 2000)}\n\nBecause the focus is settled, keep the map tight: exactly 1 node per required type unless a second is truly essential. Sharper and fewer beats broad.`
+  }
+
   const result = await callClaudeJSON({
     system: SYSTEM_PROMPT,
-    userPrompt: `Create an initial opportunity map for this raw idea:\n\n${rawIdea.trim()}`,
+    userPrompt,
     schema: MAP_SCHEMA,
   })
   if (!result.ok) return result.response

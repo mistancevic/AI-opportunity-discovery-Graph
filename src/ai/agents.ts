@@ -28,10 +28,10 @@ export interface AgentService {
     direction: ExpandDirection,
     projectContext: { rawIdea: string; existingTitles: string[] },
   ): Promise<ExpandNodeResult>
-  researchNode(node: OppNode): Promise<ResearchResult>
-  challengeNode(node: OppNode): Promise<ChallengeResult>
-  validateNode(node: OppNode): Promise<ValidationResult>
-  reframeNode(node: OppNode): Promise<ReframeResult>
+  researchNode(node: OppNode, projectContext: { rawIdea: string }): Promise<ResearchResult>
+  challengeNode(node: OppNode, projectContext: { rawIdea: string }): Promise<ChallengeResult>
+  validateNode(node: OppNode, projectContext: { rawIdea: string }): Promise<ValidationResult>
+  reframeNode(node: OppNode, projectContext: { rawIdea: string }): Promise<ReframeResult>
   analyzeImpact(
     changedNodeBefore: OppNode,
     changedNodeAfter: OppNode,

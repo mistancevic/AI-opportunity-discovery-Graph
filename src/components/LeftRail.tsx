@@ -9,6 +9,8 @@ import {
 } from '../constants'
 import type { NodeType } from '../types'
 
+const COLLAPSE_KEY = 'opportunity-graph-ai/left-rail-collapsed'
+
 export function LeftRail() {
   const project = useStore((s) => s.project)
   const nodes = useStore((s) => s.nodes)
@@ -18,13 +20,57 @@ export function LeftRail() {
   const toggleFilterEvidenceStatus = useStore((s) => s.toggleFilterEvidenceStatus)
   const addManualNode = useStore((s) => s.addManualNode)
 
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_KEY) === '1')
   const [newTitle, setNewTitle] = useState('')
   const [newType, setNewType] = useState<NodeType>('problem')
 
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1')
+      return !c
+    })
+  }
+
+  const activeFilters = filterNodeTypes.size + filterEvidenceStatuses.size
   const usedTypes = ALL_NODE_TYPES.filter((t) => nodes.some((n) => n.nodeType === t))
+
+  if (collapsed) {
+    return (
+      <aside className="flex w-10 shrink-0 flex-col items-center gap-3 border-r border-slate-200 bg-white py-3">
+        <button
+          className="rounded p-1.5 text-slate-500 hover:bg-slate-100"
+          title="Expand panel"
+          onClick={toggleCollapsed}
+        >
+          »
+        </button>
+        {activeFilters > 0 && (
+          <span
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white"
+            title={`${activeFilters} active filter${activeFilters > 1 ? 's' : ''}`}
+          >
+            {activeFilters}
+          </span>
+        )}
+        <span className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-300 [writing-mode:vertical-rl]">
+          Filters & Today's Step
+        </span>
+      </aside>
+    )
+  }
 
   return (
     <aside className="flex w-64 shrink-0 flex-col gap-5 overflow-y-auto border-r border-slate-200 bg-white p-4 text-sm">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400">Workspace</h2>
+        <button
+          className="rounded p-1 text-slate-500 hover:bg-slate-100"
+          title="Collapse panel"
+          onClick={toggleCollapsed}
+        >
+          «
+        </button>
+      </div>
       {project?.todayNextStep && (
         <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
           <h3 className="text-xs font-bold uppercase tracking-wide text-indigo-700">Today's Next Step</h3>

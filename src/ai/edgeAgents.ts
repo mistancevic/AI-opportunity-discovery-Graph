@@ -1,9 +1,18 @@
 // AgentService implementation backed by Supabase Edge Functions.
-// Wired so far: generateInitialMap (Build 2), expandNode (Build 3).
-// The remaining agents still use the mocks until Builds 4-6.
+// Wired so far: generateInitialMap (Build 2), expandNode (Build 3),
+// challengeNode + validateNode (Build 4). Research, reframe, and impact
+// still use the mocks until Builds 5-6.
 
 import type { AgentService } from './agents'
-import type { ExpandNodeResult, GenerateMapResult, GeneratedEdge, GeneratedNode } from '../types'
+import type {
+  ChallengeResult,
+  ExpandNodeResult,
+  GenerateMapResult,
+  GeneratedEdge,
+  GeneratedNode,
+  OppNode,
+  ValidationResult,
+} from '../types'
 import { mockAgents } from './mockAgents'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -65,6 +74,39 @@ interface WireMapResult {
   }
 }
 
+interface WireChallengeResult {
+  challenge_summary: string
+  objections: string[]
+  critical_assumptions: string[]
+  contradicting_signals_to_check: string[]
+  risk_level: 'low' | 'medium' | 'high'
+  suggested_tests: {
+    test_name: string
+    how_to_run: string
+    pass_signal: string
+    fail_signal: string
+  }[]
+}
+
+interface WireValidationResult {
+  validation_goal: string
+  test_type: ValidationResult['testType']
+  target_user: string
+  script_or_steps: string[]
+  pass_signal: string
+  fail_signal: string
+  timebox: string
+}
+
+function nodePayload(node: OppNode) {
+  return {
+    node_type: node.nodeType,
+    title: node.title,
+    description: node.description,
+    evidence_status: node.evidenceStatus,
+  }
+}
+
 interface WireExpandResult {
   summary: string
   // Same shape as WireNode but the expand contract carries why_it_matters
@@ -105,14 +147,45 @@ export const edgeAgents: AgentService = {
     }
   },
 
+  async challengeNode(node, projectContext): Promise<ChallengeResult> {
+    const wire = await callEdgeFunction<WireChallengeResult>('challenge-node', {
+      selected_node: nodePayload(node),
+      project_context: { raw_idea: projectContext.rawIdea },
+    })
+    return {
+      challengeSummary: wire.challenge_summary,
+      objections: wire.objections,
+      criticalAssumptions: wire.critical_assumptions,
+      contradictingSignalsToCheck: wire.contradicting_signals_to_check,
+      riskLevel: wire.risk_level,
+      suggestedTests: wire.suggested_tests.map((t) => ({
+        testName: t.test_name,
+        howToRun: t.how_to_run,
+        passSignal: t.pass_signal,
+        failSignal: t.fail_signal,
+      })),
+    }
+  },
+
+  async validateNode(node, projectContext): Promise<ValidationResult> {
+    const wire = await callEdgeFunction<WireValidationResult>('validate-node', {
+      selected_node: nodePayload(node),
+      project_context: { raw_idea: projectContext.rawIdea },
+    })
+    return {
+      validationGoal: wire.validation_goal,
+      testType: wire.test_type,
+      targetUser: wire.target_user,
+      scriptOrSteps: wire.script_or_steps,
+      passSignal: wire.pass_signal,
+      failSignal: wire.fail_signal,
+      timebox: wire.timebox,
+    }
+  },
+
   async expandNode(node, direction, projectContext): Promise<ExpandNodeResult> {
     const wire = await callEdgeFunction<WireExpandResult>('expand-node', {
-      selected_node: {
-        node_type: node.nodeType,
-        title: node.title,
-        description: node.description,
-        evidence_status: node.evidenceStatus,
-      },
+      selected_node: nodePayload(node),
       direction,
       project_context: {
         raw_idea: projectContext.rawIdea,

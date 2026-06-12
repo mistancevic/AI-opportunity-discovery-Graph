@@ -15,6 +15,7 @@ export function SidePanel({ nodeId }: { nodeId: string }) {
   const allNodes = useStore((s) => s.nodes)
   const agentBusy = useStore((s) => s.agentBusy)
   const agentResult = useStore((s) => s.agentResult)
+  const agentError = useStore((s) => s.agentError)
   const expandNode = useStore((s) => s.expandNode)
   const runAgentAction = useStore((s) => s.runAgentAction)
   const updateNode = useStore((s) => s.updateNode)
@@ -168,6 +169,12 @@ export function SidePanel({ nodeId }: { nodeId: string }) {
             </button>
           ))}
         </div>
+
+        {agentError && (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {agentError}
+          </p>
+        )}
       </div>
 
       {agentResult && <AgentResultPanel nodeId={nodeId} result={agentResult} />}

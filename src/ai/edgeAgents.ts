@@ -1,9 +1,9 @@
 // AgentService implementation backed by Supabase Edge Functions.
-// Build 2 wires up generateInitialMap; the remaining agents still use the
-// mocks and will be replaced one by one in Builds 3-6.
+// Wired so far: generateInitialMap (Build 2), expandNode (Build 3).
+// The remaining agents still use the mocks until Builds 4-6.
 
 import type { AgentService } from './agents'
-import type { GenerateMapResult, GeneratedEdge, GeneratedNode } from '../types'
+import type { ExpandNodeResult, GenerateMapResult, GeneratedEdge, GeneratedNode } from '../types'
 import { mockAgents } from './mockAgents'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -65,6 +65,14 @@ interface WireMapResult {
   }
 }
 
+interface WireExpandResult {
+  summary: string
+  // Same shape as WireNode but the expand contract carries why_it_matters
+  // and no assumptions array.
+  new_nodes: (Omit<WireNode, 'assumptions'> & { assumptions?: string[]; why_it_matters: string })[]
+  new_edges: WireEdge[]
+}
+
 export const edgeAgents: AgentService = {
   ...mockAgents,
 
@@ -94,6 +102,54 @@ export const edgeAgents: AgentService = {
         suggestedAction: wire.today_next_step.suggested_action,
         whyItMatters: wire.today_next_step.why_it_matters,
       },
+    }
+  },
+
+  async expandNode(node, direction, projectContext): Promise<ExpandNodeResult> {
+    const wire = await callEdgeFunction<WireExpandResult>('expand-node', {
+      selected_node: {
+        node_type: node.nodeType,
+        title: node.title,
+        description: node.description,
+        evidence_status: node.evidenceStatus,
+      },
+      direction,
+      project_context: {
+        raw_idea: projectContext.rawIdea,
+        existing_titles: projectContext.existingTitles,
+      },
+    })
+
+    // Belt-and-suspenders dedupe: the prompt forbids duplicates, but a
+    // duplicated title would silently confuse the map if it slipped through.
+    const existing = new Set(projectContext.existingTitles.map((t) => t.toLowerCase()))
+    const newNodes = wire.new_nodes
+      .filter((n) => !existing.has(n.title.toLowerCase()))
+      .map((n) => ({
+        tempId: n.temp_id,
+        nodeType: n.node_type,
+        title: n.title,
+        description: n.why_it_matters ? `${n.description}\n\nWhy it matters: ${n.why_it_matters}` : n.description,
+        evidenceStatus: n.evidence_status,
+        confidenceScore: n.confidence_score,
+        assumptions: n.assumptions ?? [],
+        suggestedNextAction: n.suggested_next_action ?? '',
+      }))
+    const kept = new Set(newNodes.map((n) => n.tempId))
+
+    return {
+      summary: wire.summary,
+      newNodes,
+      // The function uses the literal temp id "selected" for the selected
+      // node; the store expects the placeholder "__selected__".
+      newEdges: wire.new_edges
+        .filter((e) => kept.has(e.target_temp_id))
+        .map((e) => ({
+          sourceTempId: e.source_temp_id === 'selected' ? '__selected__' : e.source_temp_id,
+          targetTempId: e.target_temp_id,
+          relationshipType: e.relationship_type,
+          explanation: e.explanation,
+        })),
     }
   },
 }

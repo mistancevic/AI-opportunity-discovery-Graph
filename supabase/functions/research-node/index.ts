@@ -77,6 +77,8 @@ ${project_context?.raw_idea ?? ''}`
     system: SYSTEM_PROMPT,
     userPrompt,
     schema: RESEARCH_SCHEMA,
+    effort: 'low',
+    label: 'research-node',
   })
   if (!result.ok) return result.response
   return jsonResponse(result.data)

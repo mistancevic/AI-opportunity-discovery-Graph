@@ -122,6 +122,8 @@ ${existingTitles.map((t) => `- ${t}`).join('\n')}`
     system: SYSTEM_PROMPT,
     userPrompt,
     schema: EXPAND_SCHEMA,
+    effort: 'low',
+    label: 'expand-node',
   })
   if (!result.ok) return result.response
 

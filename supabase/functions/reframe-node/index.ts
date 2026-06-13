@@ -67,6 +67,8 @@ ${project_context?.raw_idea ?? ''}`
     system: SYSTEM_PROMPT,
     userPrompt,
     schema: REFRAME_SCHEMA,
+    effort: 'low',
+    label: 'reframe-node',
   })
   if (!result.ok) return result.response
 

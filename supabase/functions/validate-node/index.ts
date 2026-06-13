@@ -73,6 +73,8 @@ ${project_context?.raw_idea ?? ''}`
     system: SYSTEM_PROMPT,
     userPrompt,
     schema: VALIDATION_SCHEMA,
+    effort: 'low',
+    label: 'validate-node',
   })
   if (!result.ok) return result.response
   return jsonResponse(result.data)

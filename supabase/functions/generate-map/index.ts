@@ -130,6 +130,8 @@ Deno.serve(async (req) => {
     system: SYSTEM_PROMPT,
     userPrompt,
     schema: MAP_SCHEMA,
+    effort: 'medium',
+    label: 'generate-map',
   })
   if (!result.ok) return result.response
 

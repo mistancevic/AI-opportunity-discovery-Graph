@@ -82,6 +82,8 @@ ${project_context?.raw_idea ?? ''}`
     system: SYSTEM_PROMPT,
     userPrompt,
     schema: CHALLENGE_SCHEMA,
+    effort: 'medium',
+    label: 'challenge-node',
   })
   if (!result.ok) return result.response
   return jsonResponse(result.data)

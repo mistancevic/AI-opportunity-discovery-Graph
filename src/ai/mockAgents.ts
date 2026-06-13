@@ -23,12 +23,13 @@ function makeNode(partial: Omit<GeneratedNode, 'tempId' | 'evidenceStatus'>): Ge
   return { tempId: tempId(), evidenceStatus: 'assumption', ...partial }
 }
 
+// Moderator keeps a human name; everyone else is labeled by their skill title.
 const MOCK_ROSTER: PanelAgent[] = [
-  { agentId: 'lead', name: 'Maya', role: 'Discussion lead', perspective: 'Synthesizes and asks the next sharp question', kind: 'lead' },
-  { agentId: 'critic', name: 'Viktor', role: 'Critic', perspective: 'Attacks weak assumptions', kind: 'critic' },
-  { agentId: 'tenx', name: 'Asha', role: '10x thinker', perspective: 'Pushes the framing bigger', kind: 'tenx' },
-  { agentId: 'wildcard', name: 'Ozzy', role: 'Wildcard', perspective: 'Throws lateral angles', kind: 'wildcard' },
-  { agentId: 'spec1', name: 'Dr. Lin', role: 'Domain specialist', perspective: 'Brings domain reality (cast for this idea)', kind: 'specialist' },
+  { agentId: 'lead', name: 'Maya', role: 'Moderator', perspective: 'Synthesizes and asks the next sharp question', kind: 'lead' },
+  { agentId: 'critic', name: 'Critic', role: 'Critic', perspective: 'Attacks weak assumptions', kind: 'critic' },
+  { agentId: 'tenx', name: '10x Thinker', role: '10x thinker', perspective: 'Pushes the framing bigger', kind: 'tenx' },
+  { agentId: 'wildcard', name: 'Wildcard', role: 'Wildcard', perspective: 'Throws lateral angles', kind: 'wildcard' },
+  { agentId: 'spec1', name: 'Domain Specialist', role: 'Domain specialist', perspective: 'Brings domain reality (cast for this idea)', kind: 'specialist' },
 ]
 
 export const mockAgents: AgentService = {
@@ -40,8 +41,8 @@ export const mockAgents: AgentService = {
       return {
         roster: MOCK_ROSTER,
         messages: [
-          { agentId: 'critic', agentName: 'Viktor', text: `"${rawIdea.slice(0, 60)}..." - as stated, everyone and no one is the customer. That worries me.` },
-          { agentId: 'spec1', agentName: 'Dr. Lin', text: 'From inside this domain: the people who feel this most are not who founders usually assume.' },
+          { agentId: 'critic', agentName: 'Critic', text: `"${rawIdea.slice(0, 60)}..." - as stated, everyone and no one is the customer. That worries me.` },
+          { agentId: 'spec1', agentName: 'Domain Specialist', text: 'From inside this domain: the people who feel this most are not who founders usually assume.' },
           { agentId: 'lead', agentName: 'Maya', text: 'Let us narrow before we map. Who exactly do you picture using this in week one - and what were they doing about the problem last week?' },
         ],
         readyToMap: false,
@@ -52,8 +53,8 @@ export const mockAgents: AgentService = {
       return {
         roster: [],
         messages: [
-          { agentId: 'tenx', agentName: 'Asha', text: 'If that segment is right, what does this look like when 10,000 of them rely on it weekly? That version might be the real product.' },
-          { agentId: 'wildcard', agentName: 'Ozzy', text: 'Contrarian angle: what if you served the people the incumbents ignore on purpose - the ones too small or too weird to be worth their while?' },
+          { agentId: 'tenx', agentName: '10x Thinker', text: 'If that segment is right, what does this look like when 10,000 of them rely on it weekly? That version might be the real product.' },
+          { agentId: 'wildcard', agentName: 'Wildcard', text: 'Contrarian angle: what if you served the people the incumbents ignore on purpose - the ones too small or too weird to be worth their while?' },
           { agentId: 'lead', agentName: 'Maya', text: `Building on "${lastUser.slice(0, 50)}..." - what is the angle here that an incumbent with 100x your budget would refuse to copy?` },
         ],
         readyToMap: false,
@@ -63,7 +64,7 @@ export const mockAgents: AgentService = {
     return {
       roster: [],
       messages: [
-        { agentId: 'critic', agentName: 'Viktor', text: 'I can live with this framing - it is narrow enough to be testable, which is all I ask.' },
+        { agentId: 'critic', agentName: 'Critic', text: 'I can live with this framing - it is narrow enough to be testable, which is all I ask.' },
         { agentId: 'lead', agentName: 'Maya', text: 'I think we have a focus: a specific segment, a recent pain, and an angle the big players will not chase. Shall we generate the focused map?' },
       ],
       readyToMap: true,

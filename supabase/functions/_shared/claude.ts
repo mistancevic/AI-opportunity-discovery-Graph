@@ -60,9 +60,32 @@ interface ClaudeJSONRequest {
   userPrompt: string
   schema: Record<string, unknown>
   maxTokens?: number
+  // Lower effort = less thinking = much lower cost. Default 'medium' is a good
+  // balance for these structured tasks; mechanical agents can use 'low'.
+  effort?: 'low' | 'medium' | 'high'
+  // Short agent name used only in cost log lines.
+  label?: string
 }
 
 type ClaudeJSONResult = { ok: true; data: unknown } | { ok: false; response: Response }
+
+// Claude Opus 4.8 pricing, $ per million tokens.
+const PRICE = { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 }
+
+function logUsage(label: string, usage: {
+  input_tokens?: number | null
+  output_tokens?: number | null
+  cache_read_input_tokens?: number | null
+  cache_creation_input_tokens?: number | null
+}) {
+  const inp = usage.input_tokens ?? 0
+  const out = usage.output_tokens ?? 0
+  const cr = usage.cache_read_input_tokens ?? 0
+  const cw = usage.cache_creation_input_tokens ?? 0
+  const cost = (inp * PRICE.input + out * PRICE.output + cr * PRICE.cacheRead + cw * PRICE.cacheWrite) / 1_000_000
+  // One greppable line per call; visible in Supabase -> Edge Functions -> Logs.
+  console.log(`[cost] agent=${label} in=${inp} out=${out} cache_read=${cr} est=$${cost.toFixed(4)}`)
+}
 
 export async function callClaudeJSON(req: ClaudeJSONRequest): Promise<ClaudeJSONResult> {
   const client = new Anthropic() // reads ANTHROPIC_API_KEY from the environment
@@ -72,7 +95,7 @@ export async function callClaudeJSON(req: ClaudeJSONRequest): Promise<ClaudeJSON
       max_tokens: req.maxTokens ?? 16000,
       thinking: { type: 'adaptive' },
       system: req.system,
-      output_config: { format: { type: 'json_schema', schema: req.schema } },
+      output_config: { format: { type: 'json_schema', schema: req.schema }, effort: req.effort ?? 'medium' },
       messages: [{ role: 'user', content: req.userPrompt }],
     })
 
@@ -87,6 +110,7 @@ export async function callClaudeJSON(req: ClaudeJSONRequest): Promise<ClaudeJSON
     if (!textBlock || textBlock.type !== 'text') {
       return { ok: false, response: errorResponse(502, 'The model returned no text output.') }
     }
+    logUsage(req.label ?? 'agent', response.usage)
     return { ok: true, data: JSON.parse(textBlock.text) }
   } catch (err) {
     if (err instanceof Anthropic.APIError) {

@@ -108,6 +108,8 @@ ${relatedList}`
     system: SYSTEM_PROMPT,
     userPrompt,
     schema: IMPACT_SCHEMA,
+    effort: 'low',
+    label: 'analyze-impact',
   })
   if (!result.ok) return result.response
 

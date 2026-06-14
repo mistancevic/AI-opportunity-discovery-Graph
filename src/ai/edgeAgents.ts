@@ -19,6 +19,7 @@ import type {
   PanelAgentKind,
   ReframeResult,
   ResearchResult,
+  StrategyRevision,
   ValidationResult,
 } from '../types'
 import { mockAgents } from './mockAgents'
@@ -140,6 +141,13 @@ interface WireCoherenceResult {
   tensions: { between: NodeType[]; issue: string }[]
   gaps: string[]
   best_next_change: { component_type: string; change: string; why: string }
+}
+
+interface WireStrategyRevision {
+  summary: string
+  no_change_needed: boolean
+  proposed: { who_to_win: string; wedge: string; refuse: string }
+  changes: { field: 'whoToWin' | 'wedge' | 'refuse'; from: string; to: string; reason: string }[]
 }
 
 interface WireDiscussResult {
@@ -352,6 +360,29 @@ export const edgeAgents: AgentService = {
         change: wire.best_next_change.change,
         why: wire.best_next_change.why,
       },
+    }
+  },
+
+  async reviseStrategy(findings, strategy, rawIdea): Promise<StrategyRevision> {
+    const wire = await callEdgeFunction<WireStrategyRevision>('revise-strategy', {
+      raw_idea: rawIdea,
+      strategy: { who_to_win: strategy.whoToWin, wedge: strategy.wedge, refuse: strategy.refuse },
+      findings: findings.map((f) => ({
+        component_type: f.componentType,
+        title: f.title,
+        description: f.description,
+        evidence_status: f.evidenceStatus,
+      })),
+    })
+    return {
+      summary: wire.summary,
+      noChangeNeeded: wire.no_change_needed,
+      proposed: {
+        whoToWin: wire.proposed.who_to_win,
+        wedge: wire.proposed.wedge,
+        refuse: wire.proposed.refuse,
+      },
+      changes: wire.changes,
     }
   },
 

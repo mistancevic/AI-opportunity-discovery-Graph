@@ -13,6 +13,7 @@ import type {
   ChallengeResult,
   CoherenceResult,
   DiscussResult,
+  EvidenceStatus,
   ExpandDirection,
   ExpandNodeResult,
   GenerateMapResult,
@@ -24,6 +25,7 @@ import type {
   ReframeResult,
   ResearchResult,
   Strategy,
+  StrategyRevision,
   ValidationResult,
 } from '../types'
 
@@ -58,4 +60,11 @@ export interface AgentService {
     strategy: Strategy,
     rawIdea: string,
   ): Promise<CoherenceResult>
+  // Bottom-up loop: given the findings (the storyline's ingredients and their
+  // evidence status), propose how the strategy itself should change.
+  reviseStrategy(
+    findings: { componentType: NodeType; title: string; description: string; evidenceStatus: EvidenceStatus }[],
+    strategy: Strategy,
+    rawIdea: string,
+  ): Promise<StrategyRevision>
 }

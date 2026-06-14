@@ -7,7 +7,13 @@ import {
   NODE_TYPE_ACCENTS,
   NODE_TYPE_LABELS,
 } from '../constants'
-import type { CoherenceResult, NodeType, Strategy } from '../types'
+import type { CoherenceResult, NodeType, Strategy, StrategyRevision } from '../types'
+
+const FIELD_LABELS: Record<keyof Strategy, string> = {
+  whoToWin: 'Who we want to win',
+  wedge: 'Our wedge',
+  refuse: 'What we refuse to do',
+}
 
 const STRATEGY_FIELDS: { key: keyof Strategy; label: string; placeholder: string }[] = [
   { key: 'whoToWin', label: 'Who we want to win', placeholder: 'The customer we are betting the company on…' },
@@ -31,6 +37,12 @@ export function CanvasScreen() {
   const coherenceBusy = useStore((s) => s.coherenceBusy)
   const coherenceError = useStore((s) => s.coherenceError)
   const scoreCoherence = useStore((s) => s.scoreCoherence)
+  const strategyRevision = useStore((s) => s.strategyRevision)
+  const strategyRevisionBusy = useStore((s) => s.strategyRevisionBusy)
+  const strategyRevisionError = useStore((s) => s.strategyRevisionError)
+  const reviseStrategyFromFindings = useStore((s) => s.reviseStrategyFromFindings)
+  const applyStrategyRevision = useStore((s) => s.applyStrategyRevision)
+  const dismissStrategyRevision = useStore((s) => s.dismissStrategyRevision)
 
   // Lazily create a storyline for projects saved before the canvas existed.
   useEffect(() => {
@@ -47,18 +59,43 @@ export function CanvasScreen() {
       <TopBar />
 
       {/* Strategy bar */}
-      <div className="grid shrink-0 grid-cols-1 gap-3 border-b border-slate-200 bg-white px-4 py-3 md:grid-cols-3">
-        {STRATEGY_FIELDS.map((f) => (
-          <label key={f.key} className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-indigo-600">{f.label}</span>
-            <textarea
-              className="h-14 resize-none rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
-              placeholder={f.placeholder}
-              value={strategy[f.key]}
-              onChange={(e) => updateStrategy({ [f.key]: e.target.value })}
-            />
-          </label>
-        ))}
+      <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Strategy (your bet)</span>
+          <button
+            className="rounded-lg border border-indigo-300 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+            disabled={strategyRevisionBusy}
+            onClick={() => void reviseStrategyFromFindings()}
+            title="Let the findings (your selected ingredients and their evidence) propose how the strategy should change"
+          >
+            {strategyRevisionBusy ? 'Revising…' : '↻ Revise from findings'}
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          {STRATEGY_FIELDS.map((f) => (
+            <label key={f.key} className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-indigo-600">{f.label}</span>
+              <textarea
+                className="h-14 resize-none rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
+                placeholder={f.placeholder}
+                value={strategy[f.key]}
+                onChange={(e) => updateStrategy({ [f.key]: e.target.value })}
+              />
+            </label>
+          ))}
+        </div>
+        {strategyRevisionError && (
+          <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {strategyRevisionError}
+          </p>
+        )}
+        {strategyRevision && (
+          <StrategyRevisionPanel
+            revision={strategyRevision}
+            onApply={applyStrategyRevision}
+            onDismiss={dismissStrategyRevision}
+          />
+        )}
       </div>
 
       {/* Storyline tabs */}
@@ -158,6 +195,55 @@ export function CanvasScreen() {
 
             {coherence && <CoherencePanel result={coherence} />}
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StrategyRevisionPanel({
+  revision,
+  onApply,
+  onDismiss,
+}: {
+  revision: StrategyRevision
+  onApply: () => void
+  onDismiss: () => void
+}) {
+  return (
+    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm text-slate-800">{revision.summary}</p>
+        <button className="shrink-0 text-xs text-slate-400 hover:text-slate-600" onClick={onDismiss}>
+          Dismiss
+        </button>
+      </div>
+      {revision.changes.length > 0 && (
+        <ul className="mt-2 space-y-2">
+          {revision.changes.map((c, i) => (
+            <li key={i} className="rounded-lg border border-amber-200 bg-white p-2 text-xs">
+              <div className="font-semibold text-amber-800">{FIELD_LABELS[c.field]}</div>
+              {c.from.trim() && <div className="mt-0.5 text-slate-400 line-through">{c.from}</div>}
+              <div className="text-slate-800">{c.to}</div>
+              <div className="mt-1 text-[11px] text-slate-500">{c.reason}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!revision.noChangeNeeded && (
+        <div className="mt-3 flex gap-2">
+          <button
+            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+            onClick={onApply}
+          >
+            Apply revised strategy
+          </button>
+          <button
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+            onClick={onDismiss}
+          >
+            Keep current
+          </button>
         </div>
       )}
     </div>

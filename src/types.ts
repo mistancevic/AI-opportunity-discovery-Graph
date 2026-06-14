@@ -306,3 +306,21 @@ export interface CoherenceResult {
     why: string
   }
 }
+
+// ---- Strategy revision (the bottom-up loop: findings reshape the bet) ----
+
+export type StrategyField = 'whoToWin' | 'wedge' | 'refuse'
+
+export interface StrategyChange {
+  field: StrategyField
+  from: string
+  to: string
+  reason: string
+}
+
+export interface StrategyRevision {
+  summary: string
+  noChangeNeeded: boolean
+  proposed: Strategy
+  changes: StrategyChange[]
+}

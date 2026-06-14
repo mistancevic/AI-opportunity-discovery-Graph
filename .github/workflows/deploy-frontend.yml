@@ -41,6 +41,10 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
+        with:
+          # Auto-enable Pages (Actions source) so no manual Settings toggle is
+          # needed. Requires Pages to be available on the account/repo plan.
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

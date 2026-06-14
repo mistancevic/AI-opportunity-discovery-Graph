@@ -2,12 +2,14 @@ import { useStore } from './store'
 import { StartScreen } from './components/StartScreen'
 import { DiscussScreen } from './components/DiscussScreen'
 import { GraphScreen } from './components/GraphScreen'
+import { CanvasScreen } from './components/CanvasScreen'
 import { ValidationPlanView } from './components/ValidationPlanView'
 
 export default function App() {
   const view = useStore((s) => s.view)
   if (view === 'start') return <StartScreen />
   if (view === 'discuss') return <DiscussScreen />
+  if (view === 'canvas') return <CanvasScreen />
   if (view === 'validation_plan') return <ValidationPlanView />
   return <GraphScreen />
 }

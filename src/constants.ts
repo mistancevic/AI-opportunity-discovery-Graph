@@ -71,5 +71,19 @@ export const RELATIONSHIP_TYPES: RelationshipType[] = [
 export const ALL_NODE_TYPES = Object.keys(NODE_TYPE_LABELS) as NodeType[]
 export const ALL_EVIDENCE_STATUSES = Object.keys(EVIDENCE_STATUS_LABELS) as EvidenceStatus[]
 
+// The component columns of the Strategy Canvas, in narrative order. The
+// raw idea anchors it; experiment/evidence/decision are not components.
+export const CANVAS_COMPONENT_TYPES: NodeType[] = [
+  'market',
+  'customer_segment',
+  'problem',
+  'current_alternative',
+  'demand_signal',
+  'product_concept',
+  'business_model',
+  'risk',
+  'validation_step',
+]
+
 export const EXAMPLE_IDEA =
   'I want to create an AI-assisted mind map app for opportunity discovery and demand validation.'

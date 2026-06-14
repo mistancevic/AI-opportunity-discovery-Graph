@@ -48,6 +48,14 @@ export function TopBar() {
         </button>
         <button
           className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+            view === 'canvas' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+          onClick={() => setView('canvas')}
+        >
+          Canvas
+        </button>
+        <button
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
             view === 'validation_plan' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
           onClick={() => setView('validation_plan')}

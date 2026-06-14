@@ -260,3 +260,23 @@ export interface DiscussResult {
   // Running synthesis of the agreed focus: segment, problem, angle.
   focusBrief: string
 }
+
+// ---- Strategy Canvas (compare competing storylines against a stated bet) ----
+
+// The founder's explicit strategic bet. The coherence agent (Build B) judges
+// storylines against this, and later proposes revising it as findings land.
+export interface Strategy {
+  whoToWin: string
+  wedge: string
+  refuse: string
+}
+
+// A storyline is one candidate "story": a chosen ingredient (node id) per
+// component column. The ideal emerges by contrasting storylines.
+export interface Storyline {
+  id: string
+  name: string
+  // component node_type -> selected node id
+  selections: Partial<Record<NodeType, string>>
+  createdAt: string
+}

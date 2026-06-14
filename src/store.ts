@@ -16,7 +16,10 @@ import type {
   PanelMessage,
   Project,
   RelationshipType,
+  Storyline,
+  Strategy,
 } from './types'
+import { CANVAS_COMPONENT_TYPES } from './constants'
 
 const STORAGE_KEY = 'opportunity-graph-ai/v1'
 const uid = () => crypto.randomUUID()
@@ -28,6 +31,21 @@ interface PersistedState {
   edges: OppEdge[]
   versions: NodeVersion[]
   suggestions: ImpactSuggestion[]
+  storylines: Storyline[]
+  strategy: Strategy
+  activeStorylineId: string | null
+}
+
+const EMPTY_STRATEGY: Strategy = { whoToWin: '', wedge: '', refuse: '' }
+
+// Seed a first storyline with the first candidate node selected per component.
+function makeDefaultStoryline(nodes: OppNode[], name = 'Storyline 1'): Storyline {
+  const selections: Partial<Record<NodeType, string>> = {}
+  for (const t of CANVAS_COMPONENT_TYPES) {
+    const first = nodes.find((n) => n.nodeType === t)
+    if (first) selections[t] = first.id
+  }
+  return { id: uid(), name, selections, createdAt: now() }
 }
 
 // Append newly-cast panel agents (e.g. customer personas added mid-discussion)
@@ -51,7 +69,15 @@ interface AppState extends PersistedState {
   layoutNonce: number
   filterNodeTypes: Set<NodeType>
   filterEvidenceStatuses: Set<EvidenceStatus>
-  view: 'start' | 'discuss' | 'graph' | 'validation_plan'
+  view: 'start' | 'discuss' | 'graph' | 'validation_plan' | 'canvas'
+
+  // Strategy Canvas actions
+  selectIngredient(componentType: NodeType, nodeId: string | null): void
+  createStoryline(name?: string): void
+  renameStoryline(id: string, name: string): void
+  deleteStoryline(id: string): void
+  setActiveStoryline(id: string): void
+  updateStrategy(patch: Partial<Strategy>): void
 
   // Discovery panel state (in-memory; a discussion ends when a map is generated)
   discussion: {
@@ -87,13 +113,26 @@ interface AppState extends PersistedState {
 }
 
 function load(): PersistedState {
+  const empty: PersistedState = {
+    project: null,
+    nodes: [],
+    edges: [],
+    versions: [],
+    suggestions: [],
+    storylines: [],
+    strategy: EMPTY_STRATEGY,
+    activeStorylineId: null,
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      // Merge with defaults so projects saved before the canvas existed load.
+      return { ...empty, ...JSON.parse(raw) }
+    }
   } catch {
     // corrupted state — start fresh
   }
-  return { project: null, nodes: [], edges: [], versions: [], suggestions: [] }
+  return empty
 }
 
 function persist(s: PersistedState) {
@@ -105,6 +144,9 @@ function persist(s: PersistedState) {
       edges: s.edges,
       versions: s.versions,
       suggestions: s.suggestions,
+      storylines: s.storylines,
+      strategy: s.strategy,
+      activeStorylineId: s.activeStorylineId,
     }),
   )
 }
@@ -280,7 +322,17 @@ export const useStore = create<AppState>((set, get) => ({
         createdAt: now(),
         updatedAt: now(),
       }
-      const next = { project, nodes, edges, versions: [], suggestions: [] }
+      const storyline = makeDefaultStoryline(nodes)
+      const next: PersistedState = {
+        project,
+        nodes,
+        edges,
+        versions: [],
+        suggestions: [],
+        storylines: [storyline],
+        strategy: EMPTY_STRATEGY,
+        activeStorylineId: storyline.id,
+      }
       persist(next)
       set({
         ...next,
@@ -298,13 +350,82 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   resetProject() {
-    const next: PersistedState = { project: null, nodes: [], edges: [], versions: [], suggestions: [] }
+    const next: PersistedState = {
+      project: null,
+      nodes: [],
+      edges: [],
+      versions: [],
+      suggestions: [],
+      storylines: [],
+      strategy: EMPTY_STRATEGY,
+      activeStorylineId: null,
+    }
     persist(next)
     set({ ...next, view: 'start', selectedNodeId: null, agentResult: null, discussion: null })
   },
 
   selectNode(id) {
     set({ selectedNodeId: id, agentResult: null, agentError: null })
+  },
+
+  selectIngredient(componentType, nodeId) {
+    const s = get()
+    const id = s.activeStorylineId
+    if (!id) return
+    const storylines = s.storylines.map((st) => {
+      if (st.id !== id) return st
+      const selections = { ...st.selections }
+      if (nodeId === null) delete selections[componentType]
+      else selections[componentType] = nodeId
+      return { ...st, selections }
+    })
+    persist({ ...s, storylines })
+    set({ storylines })
+  },
+
+  createStoryline(name) {
+    const s = get()
+    // New storylines start from the active one so you tweak a copy to compare.
+    const base = s.storylines.find((st) => st.id === s.activeStorylineId)
+    const storyline: Storyline = {
+      id: uid(),
+      name: name?.trim() || `Storyline ${s.storylines.length + 1}`,
+      selections: base ? { ...base.selections } : makeDefaultStoryline(s.nodes).selections,
+      createdAt: now(),
+    }
+    const storylines = [...s.storylines, storyline]
+    persist({ ...s, storylines, activeStorylineId: storyline.id })
+    set({ storylines, activeStorylineId: storyline.id })
+  },
+
+  renameStoryline(id, name) {
+    const s = get()
+    const storylines = s.storylines.map((st) => (st.id === id ? { ...st, name: name.trim() || st.name } : st))
+    persist({ ...s, storylines })
+    set({ storylines })
+  },
+
+  deleteStoryline(id) {
+    const s = get()
+    if (s.storylines.length <= 1) return // always keep at least one
+    const storylines = s.storylines.filter((st) => st.id !== id)
+    const activeStorylineId = s.activeStorylineId === id ? storylines[0].id : s.activeStorylineId
+    persist({ ...s, storylines, activeStorylineId })
+    set({ storylines, activeStorylineId })
+  },
+
+  setActiveStoryline(id) {
+    const s = get()
+    if (!s.storylines.some((st) => st.id === id)) return
+    persist({ ...s, activeStorylineId: id })
+    set({ activeStorylineId: id })
+  },
+
+  updateStrategy(patch) {
+    const s = get()
+    const strategy = { ...s.strategy, ...patch }
+    persist({ ...s, strategy })
+    set({ strategy })
   },
 
   setView(view) {

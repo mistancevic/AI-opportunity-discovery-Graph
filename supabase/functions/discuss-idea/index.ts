@@ -27,7 +27,7 @@ const DISCUSS_SCHEMA = {
           name: { type: 'string' },
           role: { type: 'string' },
           perspective: { type: 'string' },
-          kind: { type: 'string', enum: ['lead', 'critic', 'tenx', 'wildcard', 'specialist'] },
+          kind: { type: 'string', enum: ['lead', 'critic', 'tenx', 'wildcard', 'specialist', 'customer'] },
         },
         required: ['agent_id', 'name', 'role', 'perspective', 'kind'],
         additionalProperties: false,
@@ -64,11 +64,17 @@ PANEL MEMBERS (fixed):
 - kind "tenx": name = "10x Thinker". Pushes the framing 10x bigger - what is the version of this that matters at scale?
 - kind "wildcard": name = "Wildcard". Throws one unexpected lateral angle - adjacent market, inverted business model, unusual wedge.
 
-CASTING (first turn only, when no roster is given):
-You are also the casting director. Invent 1-2 TEMPORARY specialist agents (kind "specialist") tailored to this idea's specific domain. Their name is their professional title (e.g. "Registered Dietitian" for a nutrition app, "Fleet Operations Manager" for a logistics idea) - NOT a human name. Give each a role and a one-line perspective. Include the four fixed members plus your specialists in the roster, each with a unique agent_id. On later turns (roster provided), return an empty roster array and reuse the given agent_ids.
+CASTING (you are the casting director - you may add agents on the FIRST turn and on LATER turns):
+- kind "specialist": 1-2 domain experts, cast on the first turn, tailored to the idea's domain. Name = professional title (e.g. "Registered Dietitian", "Fleet Operations Manager"). NOT a human name.
+- kind "customer": a specific CUSTOMER SEGMENT brought into the room as a persona. The name IS the segment - a concrete, evocative archetype label tailored to THIS idea. Examples: for a nutrition app -> "Late-Night Eater", "Macro-Counting Lifter", "New-Year Resolutioner"; for a logistics idea -> "Owner-Operator Trucker", "Warehouse Shift Lead". NEVER a generic placeholder like "Target Customer" / "Customer Persona", and never a human first name. Each persona speaks ENTIRELY in first person from that exact segment's lived experience - what they do today, what they'd pay for, what they'd ignore, what annoys them. They are NOT an analyst; they never talk about "the market" - only about their own week.
+  Cast 2-3 DISTINCT candidate segments as soon as the idea suggests them (often turn 1), each with its own concrete name and its own point of view. Make them DISAGREE where their realities differ - contrasting how different named segments react is the sharpest way to discover which segment to focus on. Cast a fresh segment if the discussion pivots.
+
+ROSTER RULES:
+- First turn (no roster given): return the full roster = four fixed members + your specialist(s) + any customer persona(s), each with a unique agent_id.
+- Later turns (roster given): return in "roster" ONLY brand-new agents you are adding this turn (usually a new customer persona, or none). Reuse existing agent_ids for everyone already on the roster; never re-list or rename them.
 
 EVERY TURN:
-1. Choose 1-3 panel members to speak. Not everyone talks every turn; pick whoever adds the most right now. Specialists speak when domain reality matters.
+1. Choose 1-3 panel members to speak. Not everyone talks every turn; pick whoever adds the most right now. Bring a customer persona in whenever testing whether the narrowed frame survives contact with the real customer - their lived reaction is the sharpest way to narrow the decision.
 2. Each message is 1-3 conversational sentences. No lists, no headers, no lectures.
 3. The lead ALWAYS speaks last, ending with exactly one question or one concrete proposal to the user.
 4. Never re-ask something the user already answered. Build on their words.
@@ -101,7 +107,7 @@ Deno.serve(async (req) => {
   const hasRoster = Array.isArray(roster) && roster.length > 0
 
   const rosterBlock = hasRoster
-    ? `Current roster (reuse these agent_ids; return an empty roster array):\n${roster!
+    ? `Current roster (reuse these agent_ids; in "roster" return ONLY brand-new agents you add this turn, e.g. a customer persona, or none):\n${roster!
         .map((a) => `- ${a.agent_id} | ${a.name} | ${a.kind} | ${a.role}`)
         .join('\n')}`
     : 'No roster yet - this is the FIRST turn. Run the casting step and open the discussion.'

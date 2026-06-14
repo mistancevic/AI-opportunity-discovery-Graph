@@ -8,6 +8,7 @@ const KIND_STYLES: Record<PanelAgentKind, { chip: string; bubble: string }> = {
   tenx: { chip: 'bg-emerald-600', bubble: 'border-emerald-200 bg-emerald-50' },
   wildcard: { chip: 'bg-amber-500', bubble: 'border-amber-200 bg-amber-50' },
   specialist: { chip: 'bg-cyan-600', bubble: 'border-cyan-200 bg-cyan-50' },
+  customer: { chip: 'bg-fuchsia-600', bubble: 'border-fuchsia-200 bg-fuchsia-50' },
 }
 
 export function DiscussScreen() {
@@ -85,6 +86,7 @@ export function DiscussScreen() {
               </span>
               {a.name}
               {a.kind === 'specialist' && <span className="text-slate-400">· cast for this idea</span>}
+              {a.kind === 'customer' && <span className="text-fuchsia-500">· customer voice</span>}
             </span>
           ))}
         </div>

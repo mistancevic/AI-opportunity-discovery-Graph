@@ -30,6 +30,14 @@ interface PersistedState {
   suggestions: ImpactSuggestion[]
 }
 
+// Append newly-cast panel agents (e.g. customer personas added mid-discussion)
+// to the existing roster, keeping order and dropping any duplicate ids.
+function mergeRoster(existing: PanelAgent[], incoming: PanelAgent[]): PanelAgent[] {
+  const seen = new Set(existing.map((a) => a.agentId))
+  const fresh = incoming.filter((a) => !seen.has(a.agentId))
+  return fresh.length ? [...existing, ...fresh] : existing
+}
+
 interface AppState extends PersistedState {
   selectedNodeId: string | null
   generating: boolean
@@ -206,7 +214,7 @@ export const useStore = create<AppState>((set, get) => ({
       set({
         discussion: {
           ...d,
-          roster: result.roster.length ? result.roster : d.roster,
+          roster: mergeRoster(d.roster, result.roster),
           messages: [...d.messages, ...result.messages],
           focusBrief: result.focusBrief || d.focusBrief,
           readyToMap: result.readyToMap,
@@ -232,7 +240,8 @@ export const useStore = create<AppState>((set, get) => ({
       set({
         discussion: {
           ...d2,
-          roster: result.roster.length ? result.roster : d2.roster,
+          // Merge so customer personas cast mid-discussion accumulate.
+          roster: mergeRoster(d2.roster, result.roster),
           messages: [...d2.messages, ...result.messages],
           focusBrief: result.focusBrief || d2.focusBrief,
           readyToMap: result.readyToMap || d2.readyToMap,

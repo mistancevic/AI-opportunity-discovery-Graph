@@ -15,6 +15,7 @@ import type {
   OppEdge,
   OppNode,
   PanelAgent,
+  PanelCapture,
   PanelMessage,
   Project,
   RelationshipType,
@@ -103,12 +104,15 @@ interface AppState extends PersistedState {
     messages: PanelMessage[]
     focusBrief: string
     readyToMap: boolean
+    captures: PanelCapture[]
   } | null
   panelBusy: boolean
   panelError: string | null
 
   startDiscussion(rawIdea: string): Promise<void>
   sendPanelMessage(text: string): Promise<void>
+  capturePanelLine(componentType: NodeType, text: string): void
+  removeCapture(id: string): void
   generateMap(rawIdea: string, focusBrief?: string): Promise<void>
   resetProject(): void
   selectNode(id: string | null): void
@@ -268,7 +272,7 @@ export const useStore = create<AppState>((set, get) => ({
   async startDiscussion(rawIdea) {
     set({
       view: 'discuss',
-      discussion: { rawIdea, roster: [], messages: [], focusBrief: '', readyToMap: false },
+      discussion: { rawIdea, roster: [], messages: [], focusBrief: '', readyToMap: false, captures: [] },
       panelBusy: true,
       panelError: null,
     })
@@ -319,6 +323,19 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  capturePanelLine(componentType, text) {
+    const d = get().discussion
+    if (!d || !text.trim()) return
+    const capture: PanelCapture = { id: uid(), componentType, text: text.trim() }
+    set({ discussion: { ...d, captures: [...d.captures, capture] } })
+  },
+
+  removeCapture(id) {
+    const d = get().discussion
+    if (!d) return
+    set({ discussion: { ...d, captures: d.captures.filter((c) => c.id !== id) } })
+  },
+
   async generateMap(rawIdea, focusBrief) {
     set({ generating: true, generateError: null })
     try {
@@ -327,6 +344,46 @@ export const useStore = create<AppState>((set, get) => ({
       const positions = layoutPositions(result.nodes.length)
       const { nodes, idMap } = materializeNodes(result.nodes, projectId, positions, 'ai')
       const edges = materializeEdges(result.edges, projectId, idMap)
+
+      // Materialize anything captured during the discussion as user-authored
+      // candidate nodes, linked under the raw idea so they're not floating.
+      const captures = get().discussion?.captures ?? []
+      const rawIdeaNode = nodes.find((n) => n.nodeType === 'raw_idea')
+      for (const c of captures) {
+        const id = uid()
+        nodes.push({
+          id,
+          projectId,
+          parentNodeId: null,
+          nodeType: c.componentType,
+          title: c.text.length > 90 ? `${c.text.slice(0, 87)}…` : c.text,
+          description: `Captured from the discovery panel.\n\n"${c.text}"`,
+          evidenceStatus: 'assumption',
+          confidenceScore: 0.3,
+          assumptions: [],
+          reasoning: '',
+          suggestedNextAction: '',
+          positionX: 0,
+          positionY: 0,
+          createdBy: 'user',
+          createdAt: now(),
+          updatedAt: now(),
+        })
+        if (rawIdeaNode) {
+          edges.push({
+            id: uid(),
+            projectId,
+            sourceNodeId: rawIdeaNode.id,
+            targetNodeId: id,
+            relationshipType: 'contains',
+            strength: 0.5,
+            explanation: 'Captured from the discovery panel.',
+            createdBy: 'user',
+            createdAt: now(),
+          })
+        }
+      }
+
       // Replace the placeholder positions with a proper layered layout -
       // real maps vary in size and the naive ring overlaps badly.
       const layout = computeAutoLayout(nodes, edges)

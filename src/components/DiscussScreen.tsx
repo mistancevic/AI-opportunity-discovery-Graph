@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
-import type { PanelAgentKind } from '../types'
+import { CANVAS_COMPONENT_TYPES, NODE_TYPE_LABELS } from '../constants'
+import type { NodeType, PanelAgentKind } from '../types'
 
 const KIND_STYLES: Record<PanelAgentKind, { chip: string; bubble: string }> = {
   lead: { chip: 'bg-indigo-600', bubble: 'border-indigo-200 bg-indigo-50' },
@@ -18,6 +19,8 @@ export function DiscussScreen() {
   const generating = useStore((s) => s.generating)
   const generateError = useStore((s) => s.generateError)
   const sendPanelMessage = useStore((s) => s.sendPanelMessage)
+  const capturePanelLine = useStore((s) => s.capturePanelLine)
+  const removeCapture = useStore((s) => s.removeCapture)
   const generateMap = useStore((s) => s.generateMap)
   const setView = useStore((s) => s.setView)
 
@@ -102,11 +105,14 @@ export function DiscussScreen() {
             ) : (
               <div
                 key={i}
-                className={`max-w-[85%] self-start rounded-2xl rounded-bl-sm border px-4 py-2 shadow-sm ${
+                className={`group max-w-[85%] self-start rounded-2xl rounded-bl-sm border px-4 py-2 shadow-sm ${
                   KIND_STYLES[kindOf(m.agentId) ?? 'lead'].bubble
                 }`}
               >
-                <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{m.agentName}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{m.agentName}</span>
+                  <CaptureMenu onCapture={(t) => capturePanelLine(t, m.text)} />
+                </div>
                 <div className="mt-0.5 text-sm text-slate-800">{m.text}</div>
               </div>
             ),
@@ -124,6 +130,31 @@ export function DiscussScreen() {
           <div ref={endRef} />
         </div>
       </div>
+
+      {discussion.captures.length > 0 && (
+        <div className="border-t border-slate-200 bg-emerald-50/60 px-4 py-2">
+          <div className="mx-auto max-w-3xl">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+              Captured for the map ({discussion.captures.length})
+            </span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {discussion.captures.map((c) => (
+                <span
+                  key={c.id}
+                  className="flex items-center gap-1.5 rounded-full bg-white py-0.5 pl-2 pr-1 text-xs text-slate-700 shadow-sm"
+                  title={c.text}
+                >
+                  <span className="font-semibold text-emerald-700">{NODE_TYPE_LABELS[c.componentType]}:</span>
+                  <span className="max-w-[200px] truncate">{c.text}</span>
+                  <button className="rounded-full px-1 text-slate-400 hover:text-red-500" onClick={() => removeCapture(c.id)}>
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {discussion.focusBrief && (
         <div className="border-t border-slate-200 bg-indigo-50/60 px-4 py-2">
@@ -154,6 +185,43 @@ export function DiscussScreen() {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Small per-message control: tag this line as a candidate ingredient for a
+// component. Captures are materialized into canvas nodes when the map generates.
+function CaptureMenu({ onCapture }: { onCapture: (componentType: NodeType) => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <button
+        className="rounded px-1.5 py-0.5 text-[11px] text-slate-400 opacity-0 transition group-hover:opacity-100 hover:bg-white hover:text-indigo-600"
+        onClick={() => setOpen((o) => !o)}
+        title="Capture this line as a candidate ingredient for the canvas"
+      >
+        + capture
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-1 max-h-60 w-48 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Capture as…</div>
+            {CANVAS_COMPONENT_TYPES.map((t) => (
+              <button
+                key={t}
+                className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-indigo-50"
+                onClick={() => {
+                  onCapture(t)
+                  setOpen(false)
+                }}
+              >
+                {NODE_TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

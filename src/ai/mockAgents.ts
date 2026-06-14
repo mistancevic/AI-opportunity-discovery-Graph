@@ -50,12 +50,21 @@ export const mockAgents: AgentService = {
       }
     }
     if (userTurns === 1) {
+      // A segment has emerged - cast a customer persona to voice it firsthand.
       return {
-        roster: [],
+        roster: [
+          {
+            agentId: 'cust1',
+            name: 'Target Customer',
+            role: 'Customer persona',
+            perspective: 'Speaks in first person from lived experience (cast for the emerging segment)',
+            kind: 'customer',
+          },
+        ],
         messages: [
           { agentId: 'tenx', agentName: '10x Thinker', text: 'If that segment is right, what does this look like when 10,000 of them rely on it weekly? That version might be the real product.' },
-          { agentId: 'wildcard', agentName: 'Wildcard', text: 'Contrarian angle: what if you served the people the incumbents ignore on purpose - the ones too small or too weird to be worth their while?' },
-          { agentId: 'lead', agentName: 'Maya', text: `Building on "${lastUser.slice(0, 50)}..." - what is the angle here that an incumbent with 100x your budget would refuse to copy?` },
+          { agentId: 'cust1', agentName: 'Target Customer', text: `Honestly? Last week I just muddled through with what I already use. I would not go looking for a new tool unless it saved me real time on day one - and I would not pay upfront.` },
+          { agentId: 'lead', agentName: 'Maya', text: `You heard the customer - "saves real time on day one, no upfront pay." What is the angle here that an incumbent with 100x your budget would refuse to copy?` },
         ],
         readyToMap: false,
         focusBrief: `Early focus: ${lastUser.slice(0, 120)}`,

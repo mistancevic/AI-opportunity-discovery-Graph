@@ -235,7 +235,7 @@ export type AgentActionResult =
 
 // ---- Discovery panel (conversational narrowing before map generation) ----
 
-export type PanelAgentKind = 'lead' | 'critic' | 'tenx' | 'wildcard' | 'specialist'
+export type PanelAgentKind = 'lead' | 'critic' | 'tenx' | 'wildcard' | 'specialist' | 'customer'
 
 export interface PanelAgent {
   agentId: string

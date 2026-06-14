@@ -121,19 +121,19 @@ export function CanvasScreen() {
         </button>
       </div>
 
-      {/* Component columns */}
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="flex h-full gap-3 p-4" style={{ minWidth: 'min-content' }}>
+      {/* Component lanes — horizontal columns on desktop, stacked full-width on mobile */}
+      <div className="min-h-0 flex-1 overflow-auto">
+        <div className="flex flex-col gap-3 p-4 md:h-full md:flex-row md:flex-nowrap" style={{ minWidth: 'min-content' }}>
           {CANVAS_COMPONENT_TYPES.map((type) => {
             const candidates = nodes.filter((n) => n.nodeType === type)
             const selectedId = active?.selections[type]
             return (
-              <div key={type} className="flex h-full w-64 shrink-0 flex-col rounded-xl border border-slate-200 bg-white">
+              <div key={type} className="flex w-full shrink-0 flex-col rounded-xl border border-slate-200 bg-white md:h-full md:w-64">
                 <div className={`rounded-t-xl px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white ${NODE_TYPE_ACCENTS[type]}`}>
                   {NODE_TYPE_LABELS[type]}
                   <span className="ml-1 font-normal opacity-80">({candidates.length})</span>
                 </div>
-                <div className="flex-1 space-y-2 overflow-y-auto p-2">
+                <div className="space-y-2 p-2 md:flex-1 md:overflow-y-auto">
                   {candidates.length === 0 && (
                     <p className="px-1 py-2 text-xs text-slate-400">
                       No candidates yet. Expand a node or add one on the map.
@@ -170,7 +170,7 @@ export function CanvasScreen() {
 
       {/* Storyline summary + coherence */}
       {active && (
-        <div className="max-h-[42%] shrink-0 overflow-y-auto border-t border-slate-200 bg-white px-4 py-3">
+        <div className="shrink-0 overflow-y-auto border-t border-slate-200 bg-white px-4 py-3 md:max-h-[42%]">
           <div className="mx-auto max-w-5xl">
             <div className="flex items-start gap-3">
               <div className="flex-1 text-sm text-slate-700">

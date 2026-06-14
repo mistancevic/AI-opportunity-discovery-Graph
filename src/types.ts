@@ -261,6 +261,15 @@ export interface DiscussResult {
   focusBrief: string
 }
 
+// A line from the panel discussion the user tagged as a candidate ingredient
+// for a specific component. Materialized into a canvas node when the map is
+// generated.
+export interface PanelCapture {
+  id: string
+  componentType: NodeType
+  text: string
+}
+
 // ---- Strategy Canvas (compare competing storylines against a stated bet) ----
 
 // The founder's explicit strategic bet. The coherence agent (Build B) judges

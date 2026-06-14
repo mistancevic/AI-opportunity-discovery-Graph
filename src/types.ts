@@ -280,3 +280,29 @@ export interface Storyline {
   selections: Partial<Record<NodeType, string>>
   createdAt: string
 }
+
+// ---- Coherence agent (the sense-making machine) ----
+
+export interface CoherenceTension {
+  // The two component types in tension (e.g. ["customer_segment","business_model"]).
+  between: NodeType[]
+  issue: string
+}
+
+export interface CoherenceResult {
+  // 0..1 how well the storyline holds together as one story.
+  internalScore: number
+  // 0..1 how well it serves the stated strategy (null if no strategy written).
+  strategyScore: number | null
+  verdict: string
+  strengths: string[]
+  tensions: CoherenceTension[]
+  // What's conspicuously missing or unfilled.
+  gaps: string[]
+  // The single highest-leverage change to improve the story.
+  bestNextChange: {
+    componentType: NodeType | null
+    change: string
+    why: string
+  }
+}

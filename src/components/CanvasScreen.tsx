@@ -7,7 +7,7 @@ import {
   NODE_TYPE_ACCENTS,
   NODE_TYPE_LABELS,
 } from '../constants'
-import type { NodeType, Strategy } from '../types'
+import type { CoherenceResult, NodeType, Strategy } from '../types'
 
 const STRATEGY_FIELDS: { key: keyof Strategy; label: string; placeholder: string }[] = [
   { key: 'whoToWin', label: 'Who we want to win', placeholder: 'The customer we are betting the company on…' },
@@ -27,6 +27,10 @@ export function CanvasScreen() {
   const deleteStoryline = useStore((s) => s.deleteStoryline)
   const setActiveStoryline = useStore((s) => s.setActiveStoryline)
   const updateStrategy = useStore((s) => s.updateStrategy)
+  const coherence = useStore((s) => s.coherence)
+  const coherenceBusy = useStore((s) => s.coherenceBusy)
+  const coherenceError = useStore((s) => s.coherenceError)
+  const scoreCoherence = useStore((s) => s.scoreCoherence)
 
   // Lazily create a storyline for projects saved before the canvas existed.
   useEffect(() => {
@@ -127,18 +131,107 @@ export function CanvasScreen() {
         </div>
       </div>
 
-      {/* Storyline summary */}
+      {/* Storyline summary + coherence */}
       {active && (
-        <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3">
-          <div className="mx-auto max-w-5xl text-sm text-slate-700">
-            <span className="font-semibold text-indigo-700">{active.name}: </span>
-            {storyAsSentence(active.selections, nodeById)}
+        <div className="max-h-[42%] shrink-0 overflow-y-auto border-t border-slate-200 bg-white px-4 py-3">
+          <div className="mx-auto max-w-5xl">
+            <div className="flex items-start gap-3">
+              <div className="flex-1 text-sm text-slate-700">
+                <span className="font-semibold text-indigo-700">{active.name}: </span>
+                {storyAsSentence(active.selections, nodeById)}
+              </div>
+              <button
+                className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                disabled={coherenceBusy}
+                onClick={() => void scoreCoherence()}
+                title="Judge whether this story holds together and serves your strategy"
+              >
+                {coherenceBusy ? 'Sensing…' : coherence ? 'Re-check coherence' : 'Check coherence'}
+              </button>
+            </div>
+
+            {coherenceError && (
+              <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {coherenceError}
+              </p>
+            )}
+
+            {coherence && <CoherencePanel result={coherence} />}
           </div>
-          <p className="mx-auto mt-1 max-w-5xl text-xs text-slate-400">
-            Coherence scoring — does this story hold together, and against your strategy — arrives in the next build.
-          </p>
         </div>
       )}
+    </div>
+  )
+}
+
+function ScoreBar({ label, score }: { label: string; score: number }) {
+  const pct = Math.round(score * 100)
+  const color = pct >= 66 ? 'bg-green-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-28 shrink-0 text-xs text-slate-500">{label}</span>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+        <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-8 shrink-0 text-right text-xs font-medium text-slate-600">{pct}%</span>
+    </div>
+  )
+}
+
+function CoherencePanel({ result }: { result: CoherenceResult }) {
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="space-y-1.5">
+        <ScoreBar label="Internal fit" score={result.internalScore} />
+        {result.strategyScore !== null && <ScoreBar label="Serves strategy" score={result.strategyScore} />}
+      </div>
+
+      <p className="text-sm font-medium text-slate-800">{result.verdict}</p>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {result.tensions.length > 0 && (
+          <div>
+            <h4 className="text-[11px] font-bold uppercase tracking-wide text-rose-600">Tensions</h4>
+            <ul className="mt-1 space-y-1.5">
+              {result.tensions.map((t, i) => (
+                <li key={i} className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-slate-700">
+                  <span className="font-semibold text-rose-700">
+                    {t.between.map((b) => NODE_TYPE_LABELS[b]).join(' ↔ ')}:{' '}
+                  </span>
+                  {t.issue}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {result.strengths.length > 0 && (
+          <div>
+            <h4 className="text-[11px] font-bold uppercase tracking-wide text-green-600">Reinforcing</h4>
+            <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-slate-600">
+              {result.strengths.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {result.gaps.length > 0 && (
+        <p className="text-xs text-slate-500">
+          <span className="font-semibold">Gaps:</span> {result.gaps.join(' · ')}
+        </p>
+      )}
+
+      <div className="rounded-lg bg-indigo-50 p-3">
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-indigo-700">Best next change</h4>
+        <p className="mt-1 text-sm text-slate-800">
+          {result.bestNextChange.componentType && (
+            <span className="font-semibold">{NODE_TYPE_LABELS[result.bestNextChange.componentType]}: </span>
+          )}
+          {result.bestNextChange.change}
+        </p>
+        <p className="mt-0.5 text-xs text-slate-500">{result.bestNextChange.why}</p>
+      </div>
     </div>
   )
 }

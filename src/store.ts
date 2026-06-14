@@ -3,6 +3,7 @@ import { agents } from './ai'
 import { computeAutoLayout } from './lib/autoLayout'
 import type {
   AgentActionResult,
+  CoherenceResult,
   EvidenceStatus,
   ExpandDirection,
   GeneratedNode,
@@ -78,6 +79,13 @@ interface AppState extends PersistedState {
   deleteStoryline(id: string): void
   setActiveStoryline(id: string): void
   updateStrategy(patch: Partial<Strategy>): void
+
+  // Coherence agent (per active storyline; kept in memory, recomputed on demand)
+  coherence: CoherenceResult | null
+  coherenceBusy: boolean
+  coherenceError: string | null
+  scoreCoherence(): Promise<void>
+  clearCoherence(): void
 
   // Discovery panel state (in-memory; a discussion ends when a map is generated)
   discussion: {
@@ -241,6 +249,9 @@ export const useStore = create<AppState>((set, get) => ({
   discussion: null,
   panelBusy: false,
   panelError: null,
+  coherence: null,
+  coherenceBusy: false,
+  coherenceError: null,
 
   async startDiscussion(rawIdea) {
     set({
@@ -380,7 +391,8 @@ export const useStore = create<AppState>((set, get) => ({
       return { ...st, selections }
     })
     persist({ ...s, storylines })
-    set({ storylines })
+    // Selection changed -> the previous judgment no longer applies.
+    set({ storylines, coherence: null })
   },
 
   createStoryline(name) {
@@ -418,14 +430,43 @@ export const useStore = create<AppState>((set, get) => ({
     const s = get()
     if (!s.storylines.some((st) => st.id === id)) return
     persist({ ...s, activeStorylineId: id })
-    set({ activeStorylineId: id })
+    set({ activeStorylineId: id, coherence: null, coherenceError: null })
   },
 
   updateStrategy(patch) {
     const s = get()
     const strategy = { ...s.strategy, ...patch }
     persist({ ...s, strategy })
-    set({ strategy })
+    // The judged story is now stale.
+    set({ strategy, coherence: null })
+  },
+
+  async scoreCoherence() {
+    const s = get()
+    const active = s.storylines.find((st) => st.id === s.activeStorylineId)
+    if (!active || !s.project) return
+    const selection = CANVAS_COMPONENT_TYPES.flatMap((t) => {
+      const nodeId = active.selections[t]
+      const node = nodeId ? s.nodes.find((n) => n.id === nodeId) : undefined
+      return node ? [{ componentType: t, title: node.title, description: node.description }] : []
+    })
+    if (selection.length < 2) {
+      set({ coherenceError: 'Pick at least two ingredients before scoring coherence.' })
+      return
+    }
+    set({ coherenceBusy: true, coherenceError: null, coherence: null })
+    try {
+      const result = await agents.scoreCoherence(selection, s.strategy, s.project.rawIdea)
+      set({ coherence: result })
+    } catch (err) {
+      set({ coherenceError: err instanceof Error ? err.message : 'Coherence scoring failed.' })
+    } finally {
+      set({ coherenceBusy: false })
+    }
+  },
+
+  clearCoherence() {
+    set({ coherence: null, coherenceError: null })
   },
 
   setView(view) {

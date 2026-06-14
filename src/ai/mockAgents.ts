@@ -4,6 +4,7 @@
 
 import type { AgentService } from './agents'
 import type {
+  CoherenceResult,
   DiscussResult,
   ExpandDirection,
   ExpandNodeResult,
@@ -368,6 +369,46 @@ export const mockAgents: AgentService = {
         ? `You changed "${before.title}" → "${after.title}". ${affected.length} related node(s) may need updates.`
         : 'No related nodes appear to be affected by this change.',
       affectedNodes: affected,
+    }
+  },
+
+  async scoreCoherence(selection, strategy): Promise<CoherenceResult> {
+    await delay(900)
+    const has = (t: NodeType) => selection.find((s) => s.componentType === t)
+    const seg = has('customer_segment')
+    const model = has('business_model')
+    const filled = selection.length
+    const internalScore = Math.min(0.9, 0.35 + filled * 0.06)
+    const strategyWritten = Boolean(strategy.whoToWin.trim() || strategy.wedge.trim())
+    return {
+      internalScore,
+      strategyScore: strategyWritten ? 0.55 : null,
+      verdict:
+        filled < 4
+          ? 'Too few ingredients picked to judge the story yet — fill more columns.'
+          : 'The story mostly holds, but the weakest link is whether this segment will pay for this model.',
+      strengths: [
+        seg ? `A specific segment ("${seg.title}") anchors the story.` : 'Several components are filled in.',
+      ],
+      tensions:
+        seg && model
+          ? [
+              {
+                between: ['customer_segment', 'business_model'],
+                issue: `Will "${seg.title}" actually pay via "${model.title}"? That link is the riskiest assumption in this storyline.`,
+              },
+            ]
+          : [],
+      gaps: ['customer_segment', 'problem', 'business_model', 'validation_step']
+        .filter((t) => !has(t as NodeType))
+        .map((t) => `No ${t.replace(/_/g, ' ')} selected yet.`),
+      bestNextChange: {
+        componentType: seg ? 'business_model' : 'customer_segment',
+        change: seg
+          ? `Pressure-test the business model against this exact segment's willingness to pay.`
+          : `Pick the customer segment first — everything else is judged relative to who you serve.`,
+        why: 'This is the link most likely to break the whole story if it is wrong.',
+      },
     }
   },
 }

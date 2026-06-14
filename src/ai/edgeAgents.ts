@@ -7,12 +7,14 @@
 import type { AgentService } from './agents'
 import type {
   ChallengeResult,
+  CoherenceResult,
   DiscussResult,
   ExpandNodeResult,
   GenerateMapResult,
   GeneratedEdge,
   GeneratedNode,
   ImpactResult,
+  NodeType,
   OppNode,
   PanelAgentKind,
   ReframeResult,
@@ -127,6 +129,17 @@ interface WireResearchResult {
 
 interface WireReframeResult {
   reframes: { title: string; why_it_matters: string }[]
+}
+
+interface WireCoherenceResult {
+  internal_score: number
+  strategy_provided: boolean
+  strategy_score: number
+  verdict: string
+  strengths: string[]
+  tensions: { between: NodeType[]; issue: string }[]
+  gaps: string[]
+  best_next_change: { component_type: string; change: string; why: string }
 }
 
 interface WireDiscussResult {
@@ -314,6 +327,31 @@ export const edgeAgents: AgentService = {
         reason: a.reason,
         confidenceScore: a.confidence_score,
       })),
+    }
+  },
+
+  async scoreCoherence(selection, strategy, rawIdea): Promise<CoherenceResult> {
+    const wire = await callEdgeFunction<WireCoherenceResult>('score-coherence', {
+      raw_idea: rawIdea,
+      strategy: { who_to_win: strategy.whoToWin, wedge: strategy.wedge, refuse: strategy.refuse },
+      selection: selection.map((s) => ({
+        component_type: s.componentType,
+        title: s.title,
+        description: s.description,
+      })),
+    })
+    return {
+      internalScore: wire.internal_score,
+      strategyScore: wire.strategy_provided ? wire.strategy_score : null,
+      verdict: wire.verdict,
+      strengths: wire.strengths,
+      tensions: wire.tensions,
+      gaps: wire.gaps,
+      bestNextChange: {
+        componentType: (wire.best_next_change.component_type || null) as NodeType | null,
+        change: wire.best_next_change.change,
+        why: wire.best_next_change.why,
+      },
     }
   },
 

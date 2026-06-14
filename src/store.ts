@@ -4,6 +4,7 @@ import { computeAutoLayout } from './lib/autoLayout'
 import type {
   AgentActionResult,
   CoherenceResult,
+  StrategyRevision,
   EvidenceStatus,
   ExpandDirection,
   GeneratedNode,
@@ -86,6 +87,14 @@ interface AppState extends PersistedState {
   coherenceError: string | null
   scoreCoherence(): Promise<void>
   clearCoherence(): void
+
+  // Strategy revision (bottom-up loop: findings propose strategy edits)
+  strategyRevision: StrategyRevision | null
+  strategyRevisionBusy: boolean
+  strategyRevisionError: string | null
+  reviseStrategyFromFindings(): Promise<void>
+  applyStrategyRevision(): void
+  dismissStrategyRevision(): void
 
   // Discovery panel state (in-memory; a discussion ends when a map is generated)
   discussion: {
@@ -252,6 +261,9 @@ export const useStore = create<AppState>((set, get) => ({
   coherence: null,
   coherenceBusy: false,
   coherenceError: null,
+  strategyRevision: null,
+  strategyRevisionBusy: false,
+  strategyRevisionError: null,
 
   async startDiscussion(rawIdea) {
     set({
@@ -430,15 +442,15 @@ export const useStore = create<AppState>((set, get) => ({
     const s = get()
     if (!s.storylines.some((st) => st.id === id)) return
     persist({ ...s, activeStorylineId: id })
-    set({ activeStorylineId: id, coherence: null, coherenceError: null })
+    set({ activeStorylineId: id, coherence: null, coherenceError: null, strategyRevision: null })
   },
 
   updateStrategy(patch) {
     const s = get()
     const strategy = { ...s.strategy, ...patch }
     persist({ ...s, strategy })
-    // The judged story is now stale.
-    set({ strategy, coherence: null })
+    // The judged story and any pending revision are now stale.
+    set({ strategy, coherence: null, strategyRevision: null })
   },
 
   async scoreCoherence() {
@@ -467,6 +479,45 @@ export const useStore = create<AppState>((set, get) => ({
 
   clearCoherence() {
     set({ coherence: null, coherenceError: null })
+  },
+
+  async reviseStrategyFromFindings() {
+    const s = get()
+    const active = s.storylines.find((st) => st.id === s.activeStorylineId)
+    if (!active || !s.project) return
+    const findings = CANVAS_COMPONENT_TYPES.flatMap((t) => {
+      const nodeId = active.selections[t]
+      const node = nodeId ? s.nodes.find((n) => n.id === nodeId) : undefined
+      return node
+        ? [{ componentType: t, title: node.title, description: node.description, evidenceStatus: node.evidenceStatus }]
+        : []
+    })
+    if (findings.length === 0) {
+      set({ strategyRevisionError: 'Pick ingredients on the canvas first — the strategy is revised against them.' })
+      return
+    }
+    set({ strategyRevisionBusy: true, strategyRevisionError: null, strategyRevision: null })
+    try {
+      const revision = await agents.reviseStrategy(findings, s.strategy, s.project.rawIdea)
+      set({ strategyRevision: revision })
+    } catch (err) {
+      set({ strategyRevisionError: err instanceof Error ? err.message : 'Strategy revision failed.' })
+    } finally {
+      set({ strategyRevisionBusy: false })
+    }
+  },
+
+  applyStrategyRevision() {
+    const s = get()
+    if (!s.strategyRevision) return
+    const strategy = { ...s.strategyRevision.proposed }
+    persist({ ...s, strategy })
+    // Applying the revised bet invalidates the previous coherence judgment.
+    set({ strategy, strategyRevision: null, coherence: null })
+  },
+
+  dismissStrategyRevision() {
+    set({ strategyRevision: null, strategyRevisionError: null })
   },
 
   setView(view) {

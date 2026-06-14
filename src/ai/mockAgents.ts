@@ -14,6 +14,8 @@ import type {
   NodeType,
   OppNode,
   PanelAgent,
+  Strategy,
+  StrategyRevision,
 } from '../types'
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -409,6 +411,51 @@ export const mockAgents: AgentService = {
           : `Pick the customer segment first — everything else is judged relative to who you serve.`,
         why: 'This is the link most likely to break the whole story if it is wrong.',
       },
+    }
+  },
+
+  async reviseStrategy(findings, strategy): Promise<StrategyRevision> {
+    await delay(900)
+    const seg = findings.find((f) => f.componentType === 'customer_segment')
+    const invalidated = findings.filter((f) => f.evidenceStatus === 'invalidated')
+    const validated = findings.filter(
+      (f) => f.evidenceStatus === 'validated' || f.evidenceStatus === 'payment_signal',
+    )
+    const changes: StrategyRevision['changes'] = []
+    const proposed: Strategy = { ...strategy }
+
+    if (seg && (!strategy.whoToWin.trim() || invalidated.length)) {
+      const to = seg.title
+      if (strategy.whoToWin.trim() !== to) {
+        changes.push({
+          field: 'whoToWin',
+          from: strategy.whoToWin,
+          to,
+          reason: invalidated.length
+            ? `Findings invalidated ${invalidated.length} assumption(s); the evidence points at "${to}" as the segment to commit to.`
+            : `The discussion converged on "${to}" — make the strategy say so explicitly.`,
+        })
+        proposed.whoToWin = to
+      }
+    }
+    if (validated.length && !strategy.wedge.trim()) {
+      const to = `Win on the one thing "${validated[0].title}" proves customers actually act on.`
+      changes.push({
+        field: 'wedge',
+        from: strategy.wedge,
+        to,
+        reason: `"${validated[0].title}" is validated — that is real ground to build the wedge on.`,
+      })
+      proposed.wedge = to
+    }
+
+    return {
+      summary: changes.length
+        ? `The findings suggest ${changes.length} adjustment(s) to the strategy so the bet matches what the evidence is actually showing.`
+        : 'The current strategy still matches the findings — no revision needed yet. Gather more evidence (validate or invalidate nodes) and re-check.',
+      noChangeNeeded: changes.length === 0,
+      proposed,
+      changes,
     }
   },
 }

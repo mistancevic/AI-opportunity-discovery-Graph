@@ -11,16 +11,19 @@
 
 import type {
   ChallengeResult,
+  CoherenceResult,
   DiscussResult,
   ExpandDirection,
   ExpandNodeResult,
   GenerateMapResult,
   ImpactResult,
+  NodeType,
   OppNode,
   PanelAgent,
   PanelMessage,
   ReframeResult,
   ResearchResult,
+  Strategy,
   ValidationResult,
 } from '../types'
 
@@ -48,4 +51,11 @@ export interface AgentService {
     changedNodeAfter: OppNode,
     relatedNodes: OppNode[],
   ): Promise<ImpactResult>
+  // Sense-making: judge one storyline (selected ingredient per component) for
+  // internal fit and against the stated strategy.
+  scoreCoherence(
+    selection: { componentType: NodeType; title: string; description: string }[],
+    strategy: Strategy,
+    rawIdea: string,
+  ): Promise<CoherenceResult>
 }

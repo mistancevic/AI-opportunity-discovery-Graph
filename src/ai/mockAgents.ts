@@ -38,33 +38,31 @@ export const mockAgents: AgentService = {
     const userTurns = history.filter((m) => m.agentId === 'user').length
     const lastUser = [...history].reverse().find((m) => m.agentId === 'user')?.text ?? ''
     if (userTurns === 0) {
+      // Cast two distinct candidate customer SEGMENTS by name, each with its
+      // own point of view. (Real AI tailors the segment names to the idea.)
       return {
-        roster: MOCK_ROSTER,
+        roster: [
+          ...MOCK_ROSTER,
+          { agentId: 'seg1', name: 'Daily Power User', role: 'Customer segment', perspective: 'Lives in tools like this; cares about speed', kind: 'customer' },
+          { agentId: 'seg2', name: 'Reluctant Switcher', role: 'Customer segment', perspective: 'Content with current tools; very high switching bar', kind: 'customer' },
+        ],
         messages: [
           { agentId: 'critic', agentName: 'Critic', text: `"${rawIdea.slice(0, 60)}..." - as stated, everyone and no one is the customer. That worries me.` },
-          { agentId: 'spec1', agentName: 'Domain Specialist', text: 'From inside this domain: the people who feel this most are not who founders usually assume.' },
-          { agentId: 'lead', agentName: 'Maya', text: 'Let us narrow before we map. Who exactly do you picture using this in week one - and what were they doing about the problem last week?' },
+          { agentId: 'seg1', agentName: 'Daily Power User', text: `Me? I'd try this the day it ships if it's faster than my current setup. I switch tools constantly to shave seconds.` },
+          { agentId: 'lead', agentName: 'Maya', text: 'Two very different segments are in the room. Which one is this actually for in week one - and what were they doing about the problem last week?' },
         ],
         readyToMap: false,
         focusBrief: '',
       }
     }
     if (userTurns === 1) {
-      // A segment has emerged - cast a customer persona to voice it firsthand.
+      // The contrasting segment pushes back - the disagreement narrows the frame.
       return {
-        roster: [
-          {
-            agentId: 'cust1',
-            name: 'Target Customer',
-            role: 'Customer persona',
-            perspective: 'Speaks in first person from lived experience (cast for the emerging segment)',
-            kind: 'customer',
-          },
-        ],
+        roster: [],
         messages: [
-          { agentId: 'tenx', agentName: '10x Thinker', text: 'If that segment is right, what does this look like when 10,000 of them rely on it weekly? That version might be the real product.' },
-          { agentId: 'cust1', agentName: 'Target Customer', text: `Honestly? Last week I just muddled through with what I already use. I would not go looking for a new tool unless it saved me real time on day one - and I would not pay upfront.` },
-          { agentId: 'lead', agentName: 'Maya', text: `You heard the customer - "saves real time on day one, no upfront pay." What is the angle here that an incumbent with 100x your budget would refuse to copy?` },
+          { agentId: 'seg2', agentName: 'Reluctant Switcher', text: `Honestly, not me. Last week I just muddled through with what I already use. I would not go looking for a new tool unless it saved me real time on day one - and I would never pay upfront.` },
+          { agentId: 'tenx', agentName: '10x Thinker', text: 'Pick the segment whose pain is sharp enough that they switch on day one - that is the 10,000-weekly-user version.' },
+          { agentId: 'lead', agentName: 'Maya', text: `So the Power User switches eagerly and the Reluctant Switcher won't - that contrast is the decision. What is the angle that wins the segment you're targeting and an incumbent would refuse to copy?` },
         ],
         readyToMap: false,
         focusBrief: `Early focus: ${lastUser.slice(0, 120)}`,
